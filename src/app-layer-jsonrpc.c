@@ -490,33 +490,41 @@ static void JsonRpcSetDecoderEvent(htp_tx_t *tx, uint8_t event_id)
     AppLayerDecoderEventsSetEventRaw(&htud->tx_data.events, event_id);
 }
 
-static void JsonRpcEmitStageEvent(htp_tx_t *tx, JsonRpcStage stage)
+static uint8_t JsonRpcResolveStageEventId(JsonRpcStage stage, uint8_t service_id)
 {
-    uint8_t event_id = 0;
+    const bool is_mcp = (service_id == JSONRPC_SERVICE_MCP);
+
     switch (stage) {
         case JSONRPC_STAGE_DISCOVERY:
-            event_id = HTTP_DECODER_EVENT_A2A_AGENT_CARD;
-            break;
+            return is_mcp ? HTTP_DECODER_EVENT_MCP_AGENT_CARD : HTTP_DECODER_EVENT_A2A_AGENT_CARD;
         case JSONRPC_STAGE_INIT:
-            event_id = HTTP_DECODER_EVENT_A2A_STAGE_INIT;
-            break;
+            return is_mcp ? HTTP_DECODER_EVENT_MCP_STAGE_INIT : HTTP_DECODER_EVENT_A2A_STAGE_INIT;
         case JSONRPC_STAGE_RPC:
-            event_id = HTTP_DECODER_EVENT_A2A_STAGE_RPC;
-            break;
+            return is_mcp ? HTTP_DECODER_EVENT_MCP_STAGE_RPC : HTTP_DECODER_EVENT_A2A_STAGE_RPC;
         case JSONRPC_STAGE_STREAM:
-            event_id = HTTP_DECODER_EVENT_A2A_STAGE_STREAM;
-            break;
+            return is_mcp ? HTTP_DECODER_EVENT_MCP_STAGE_STREAM : HTTP_DECODER_EVENT_A2A_STAGE_STREAM;
         case JSONRPC_STAGE_NONE:
         default:
-            break;
+            return 0;
     }
+}
 
+static uint8_t JsonRpcResolveAnomalyEventId(uint8_t service_id)
+{
+    return (service_id == JSONRPC_SERVICE_MCP) ? HTTP_DECODER_EVENT_MCP_ANOMALY
+                                               : HTTP_DECODER_EVENT_A2A_ANOMALY;
+}
+
+static void JsonRpcEmitStageEvent(htp_tx_t *tx, JsonRpcStage stage, uint8_t service_id)
+{
+    const uint8_t event_id = JsonRpcResolveStageEventId(stage, service_id);
     JsonRpcSetDecoderEvent(tx, event_id);
 }
 
-static void JsonRpcEmitAnomalyEvent(htp_tx_t *tx)
+static void JsonRpcEmitAnomalyEvent(htp_tx_t *tx, uint8_t service_id)
 {
-    JsonRpcSetDecoderEvent(tx, HTTP_DECODER_EVENT_A2A_ANOMALY);
+    const uint8_t event_id = JsonRpcResolveAnomalyEventId(service_id);
+    JsonRpcSetDecoderEvent(tx, event_id);
 }
 
 static bool JsonRpcBstrContainsNocase(const bstr *value, const char *needle)
@@ -657,7 +665,7 @@ static void JsonRpcMaybeDetectStreamUpgrade(
     }
 
     JsonRpcStagePromote(f, state, service, JSONRPC_STAGE_STREAM);
-    JsonRpcEmitStageEvent(tx, JSONRPC_STAGE_STREAM);
+    JsonRpcEmitStageEvent(tx, JSONRPC_STAGE_STREAM, service->id);
 }
 
 typedef struct JsonRpcMessage_ {
@@ -1038,10 +1046,10 @@ static void JsonRpcInspectRpcRequest(
     }
 
     if (state->stage > target_stage) {
-        JsonRpcEmitAnomalyEvent(tx);
+        JsonRpcEmitAnomalyEvent(tx, active_service->id);
     }
     JsonRpcStagePromote(f, state, active_service, target_stage);
-    JsonRpcEmitStageEvent(tx, target_stage);
+    JsonRpcEmitStageEvent(tx, target_stage, active_service->id);
 
     txmeta->service_id = active_service->id;
     txmeta->rpc_request = true;
@@ -1224,7 +1232,7 @@ static void JsonRpcHandleDiscovery(Flow *f, JsonRpcFlowState *state,
     }
 
     if (state->stage > JSONRPC_STAGE_DISCOVERY) {
-        JsonRpcEmitAnomalyEvent(tx);
+        JsonRpcEmitAnomalyEvent(tx, service->id);
     }
 
     state->service_id = service->id;
@@ -1233,7 +1241,7 @@ static void JsonRpcHandleDiscovery(Flow *f, JsonRpcFlowState *state,
         state->last_seen = f->lastts;
     }
     JsonRpcStatsIncrementCard(service->id);
-    JsonRpcEmitStageEvent(tx, JSONRPC_STAGE_DISCOVERY);
+    JsonRpcEmitStageEvent(tx, JSONRPC_STAGE_DISCOVERY, service->id);
 }
 
 void JsonRpcOnHttpResponseComplete(Flow *f, htp_tx_t *tx)
