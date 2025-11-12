@@ -25,8 +25,14 @@ struct htp_tx_t;
 
 typedef struct AguiSseTxData_ {
     bool request_wants_sse;
+    bool request_accepts_proto;
+    bool request_content_type_json;
+    bool request_has_run_input;
     bool response_is_sse;
+    bool response_is_proto;
+    bool response_has_valid_events;
     bool event_logged;
+    bool agui_confirmed;
     uint32_t event_count;
     uint32_t json_parsed;
     uint32_t json_failed;
@@ -44,6 +50,7 @@ void AguiSseTxDataMarkLogged(struct htp_tx_t *tx);
 void AppLayerAguiSseRegisterTests(void);
 bool AguiSseTestParseSample(
         const char *payload, uint32_t *out_count, char *last_type, size_t last_type_len);
+bool AguiSseTestBodyLooksLikeRunAgentInput(const char *body);
 #endif
 
 #endif /* __APP_LAYER_AGUI_SSE_H__ */

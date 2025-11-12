@@ -226,9 +226,12 @@ static uint64_t JsonRpcStatsGetMcpStream(void)
     return SC_ATOMIC_GET(jsonrpc_service_stats[JSONRPC_SERVICE_MCP].stream_seen);
 }
 
-static void JsonRpcRegisterStats(void)
+void JsonRpcRegisterGlobalCounters(void)
 {
     if (jsonrpc_stats_registered) {
+        return;
+    }
+    if (!JsonRpcAnyServiceEnabled()) {
         return;
     }
 
@@ -1191,7 +1194,6 @@ void JsonRpcInit(void)
     }
 
     JsonRpcLoadConfig();
-    JsonRpcRegisterStats();
     JsonRpcRegisterFlowStorage();
     JsonRpcRegisterHostStorage();
     if (JsonRpcAnyServiceEnabled()) {

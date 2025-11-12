@@ -33,6 +33,7 @@
 #include "app-layer-ftp.h"
 #include "app-layer-detect-proto.h"
 #include "app-layer-frames.h"
+#include "app-layer-jsonrpc-internal.h"
 #include "stream-tcp-reassemble.h"
 #include "stream-tcp-private.h"
 #include "stream-tcp-inline.h"
@@ -1064,6 +1065,7 @@ void AppLayerRegisterGlobalCounters(void)
     StatsRegisterGlobalCounter("ftp.memuse", FTPMemuseGlobalCounter);
     StatsRegisterGlobalCounter("ftp.memcap", FTPMemcapGlobalCounter);
     StatsRegisterGlobalCounter("app_layer.expectations", ExpectationGetCounter);
+    JsonRpcRegisterGlobalCounters();
 }
 
 #define IPPROTOS_MAX 2

@@ -28,5 +28,6 @@ bool JsonRpcDefaultAgentCardValidator(
 
 void JsonRpcRegisterA2AService(void);
 void JsonRpcRegisterMcpService(void);
+void JsonRpcRegisterGlobalCounters(void);
 
 #endif /* __APP_LAYER_JSONRPC_INTERNAL_H__ */

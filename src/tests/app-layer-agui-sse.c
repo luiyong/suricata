@@ -23,19 +23,49 @@
 static int AguiSseParseSampleTest(void)
 {
     static const char payload[] =
-            "data: {\"type\":\"text-message-start\",\"message_id\":\"123\"}\n\n"
-            "data: {\"type\":\"run_finished\",\"run_id\":\"abc\"}\n\n";
+            "data: {\"type\":\"TEXT_MESSAGE_START\",\"message_id\":\"123\"}\n\n"
+            "data: {\"type\":\"RUN_FINISHED\",\"run_id\":\"abc\"}\n\n";
 
     uint32_t count = 0;
     char last_type[32];
 
     FAIL_IF(!AguiSseTestParseSample(payload, &count, last_type, sizeof(last_type)));
     FAIL_IF(count != 2);
-    FAIL_IF(strcmp(last_type, "run_finished") != 0);
+    FAIL_IF(strcmp(last_type, "RUN_FINISHED") != 0);
+    PASS;
+}
+
+static int AguiSseRunAgentInputPositiveTest(void)
+{
+    static const char body[] =
+            "{"
+            "\"threadId\":\"thread-123\","
+            "\"runId\":\"run-456\","
+            "\"messages\":["
+            "  {\"id\":\"m1\",\"role\":\"user\",\"content\":\"hello\"},"
+            "  {\"id\":\"m2\",\"role\":\"assistant\",\"content\":\"hi\"}"
+            "]"
+            "}";
+
+    FAIL_IF(!AguiSseTestBodyLooksLikeRunAgentInput(body));
+    PASS;
+}
+
+static int AguiSseRunAgentInputNegativeTest(void)
+{
+    static const char body[] =
+            "{"
+            "\"method\":\"a2a.stream\","
+            "\"params\":{\"conversation_id\":\"conv\",\"messages\":[{\"role\":\"user\"}]}"
+            "}";
+
+    FAIL_IF(AguiSseTestBodyLooksLikeRunAgentInput(body));
     PASS;
 }
 
 void AppLayerAguiSseRegisterTests(void)
 {
     UtRegisterTest("AguiSseParseSampleTest", AguiSseParseSampleTest);
+    UtRegisterTest("AguiSseRunAgentInputPositiveTest", AguiSseRunAgentInputPositiveTest);
+    UtRegisterTest("AguiSseRunAgentInputNegativeTest", AguiSseRunAgentInputNegativeTest);
 }

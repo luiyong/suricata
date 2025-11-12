@@ -43,7 +43,8 @@ static const char *JsonRpcStageToString(JsonRpcStage stage)
     }
 }
 
-static void JsonRpcAppendHttpMetadata(JsonBuilder *jb, const htp_tx_t *tx)
+static void JsonRpcAppendHttpMetadata(
+        JsonBuilder *jb, const htp_tx_t *tx, const char *scheme_header)
 {
     if (tx == NULL) {
         return;
@@ -59,6 +60,10 @@ static void JsonRpcAppendHttpMetadata(JsonBuilder *jb, const htp_tx_t *tx)
 
     if (tx->response_status_number != -1) {
         jb_set_int(jb, "http_status", tx->response_status_number);
+    }
+
+    if (scheme_header != NULL && scheme_header[0] != '\0') {
+        jb_set_string(jb, ":scheme", scheme_header);
     }
 }
 
@@ -83,6 +88,14 @@ static const char *JsonRpcResolveEventType(
     return "jsonrpc";
 }
 
+static const char *JsonRpcResolveScheme(const JsonRpcServiceDef *service)
+{
+    if (service != NULL && service->event_type != NULL) {
+        return service->event_type;
+    }
+    return NULL;
+}
+
 static bool JsonRpcEmitCardEvent(
         ThreadVars *tv, OutputJsonThreadCtx *thread, const Packet *p, Flow *f, htp_tx_t *tx,
         const JsonRpcTxData *txmeta)
@@ -105,7 +118,7 @@ static bool JsonRpcEmitCardEvent(
     jb_set_string(jb, "service", service_name);
     jb_set_string(jb, "event", "agent_card_discovery");
     jb_set_string(jb, "stage", JsonRpcStageToString(JSONRPC_STAGE_DISCOVERY));
-    JsonRpcAppendHttpMetadata(jb, tx);
+    JsonRpcAppendHttpMetadata(jb, tx, JsonRpcResolveScheme(service));
 
     if (txmeta->card_hash_hex[0] != '\0') {
         jb_open_object(jb, "card");
@@ -144,7 +157,7 @@ static bool JsonRpcEmitRpcEvent(
     jb_set_string(jb, "service", service_name);
     jb_set_string(jb, "event", "rpc_call");
     jb_set_string(jb, "stage", JsonRpcStageToString(txmeta->rpc_stage));
-    JsonRpcAppendHttpMetadata(jb, tx);
+    JsonRpcAppendHttpMetadata(jb, tx, JsonRpcResolveScheme(service));
 
     jb_open_object(jb, "rpc");
     if (txmeta->rpc_method[0] != '\0') {
@@ -191,7 +204,7 @@ static bool JsonRpcEmitRpcResultEvent(
     jb_set_string(jb, "service", service_name);
     jb_set_string(jb, "event", "rpc_result");
     jb_set_string(jb, "stage", JsonRpcStageToString(txmeta->rpc_stage));
-    JsonRpcAppendHttpMetadata(jb, tx);
+    JsonRpcAppendHttpMetadata(jb, tx, JsonRpcResolveScheme(service));
 
     jb_open_object(jb, "rpc");
     if (txmeta->rpc_method[0] != '\0') {
@@ -237,7 +250,7 @@ static bool JsonRpcEmitStreamEvent(
     jb_set_string(jb, "service", service_name);
     jb_set_string(jb, "event", "stream_upgrade");
     jb_set_string(jb, "stage", JsonRpcStageToString(txmeta->stream_stage));
-    JsonRpcAppendHttpMetadata(jb, tx);
+    JsonRpcAppendHttpMetadata(jb, tx, JsonRpcResolveScheme(service));
 
     if (txmeta->stream_type[0] != '\0') {
         jb_open_object(jb, "stream");
@@ -260,7 +273,8 @@ static bool AguiSseEmitEvent(
     (void)f;
 
     const AguiSseTxData *ssemeta = AguiSseGetTxData(tx);
-    if (ssemeta == NULL || !ssemeta->response_is_sse || ssemeta->event_logged) {
+    if (ssemeta == NULL || !ssemeta->response_is_sse || !ssemeta->agui_confirmed ||
+            ssemeta->event_logged) {
         return false;
     }
 
@@ -273,7 +287,7 @@ static bool AguiSseEmitEvent(
     jb_open_object(jb, "agui");
     jb_set_string(jb, "event", "sse_stream");
     jb_set_string(jb, "stage", "stream");
-    JsonRpcAppendHttpMetadata(jb, tx);
+    JsonRpcAppendHttpMetadata(jb, tx, "ag-ui");
 
     jb_open_object(jb, "stream");
     jb_set_int(jb, "event_count", (int64_t)ssemeta->event_count);

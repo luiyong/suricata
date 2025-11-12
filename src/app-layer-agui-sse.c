@@ -31,8 +31,19 @@
 
 #include <jansson.h>
 
+#define AGUI_SSE_MAX_REQUEST_BODY   (128 * 1024U)
+#define AGUI_SSE_MESSAGE_SAMPLE_MAX 5U
+
+static const char *const agui_valid_roles[] = {
+    "developer", "system", "assistant", "user", "tool", "activity", NULL,
+};
+
 static bool agui_sse_initialized = false;
 static bool agui_sse_enabled = true;
+
+static void AguiSseMaybeConfirm(AguiSseTxData *txmeta);
+static bool AguiSseBodyLooksLikeRunAgentInput(const uint8_t *body, uint32_t len);
+static bool AguiSseInspectRequestBody(htp_tx_t *tx, AguiSseTxData *txmeta);
 
 static void AguiSseLoadConfig(void)
 {
@@ -54,6 +65,7 @@ void AguiSseInit(void)
         return;
     }
 
+    AppLayerHtpEnableRequestBodyCallback();
     AppLayerHtpEnableResponseBodyCallback();
     agui_sse_initialized = true;
 }
@@ -93,6 +105,79 @@ const AguiSseTxData *AguiSseGetTxData(const htp_tx_t *tx)
     return htud->agui_sse_tx;
 }
 
+static inline bool AguiSseRequestConfidence(const AguiSseTxData *txmeta)
+{
+    if (txmeta == NULL) {
+        return false;
+    }
+    return (txmeta->request_has_run_input || txmeta->request_accepts_proto);
+}
+
+static inline bool AguiSseResponseConfidence(const AguiSseTxData *txmeta)
+{
+    if (txmeta == NULL) {
+        return false;
+    }
+    if (txmeta->response_is_proto) {
+        return true;
+    }
+    return (txmeta->response_is_sse && txmeta->response_has_valid_events);
+}
+
+static void AguiSseMaybeConfirm(AguiSseTxData *txmeta)
+{
+    if (txmeta == NULL || txmeta->agui_confirmed) {
+        return;
+    }
+    if (AguiSseRequestConfidence(txmeta) && AguiSseResponseConfidence(txmeta)) {
+        txmeta->agui_confirmed = true;
+    }
+}
+
+static bool AguiSseEventTypeLooksValid(const char *type)
+{
+    if (type == NULL || type[0] == '\0') {
+        return false;
+    }
+
+    static const char *const valid_types[] = {
+        "TEXT_MESSAGE_START",
+        "TEXT_MESSAGE_CONTENT",
+        "TEXT_MESSAGE_END",
+        "TEXT_MESSAGE_CHUNK",
+        "THINKING_TEXT_MESSAGE_START",
+        "THINKING_TEXT_MESSAGE_CONTENT",
+        "THINKING_TEXT_MESSAGE_END",
+        "TOOL_CALL_START",
+        "TOOL_CALL_ARGS",
+        "TOOL_CALL_END",
+        "TOOL_CALL_CHUNK",
+        "TOOL_CALL_RESULT",
+        "THINKING_START",
+        "THINKING_END",
+        "STATE_SNAPSHOT",
+        "STATE_DELTA",
+        "MESSAGES_SNAPSHOT",
+        "ACTIVITY_SNAPSHOT",
+        "ACTIVITY_DELTA",
+        "RAW",
+        "CUSTOM",
+        "RUN_STARTED",
+        "RUN_FINISHED",
+        "RUN_ERROR",
+        "STEP_STARTED",
+        "STEP_FINISHED",
+        NULL,
+    };
+
+    for (size_t i = 0; valid_types[i] != NULL; i++) {
+        if (strcmp(type, valid_types[i]) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
 static bool AguiSseBstrContainsNocase(const bstr *value, const char *needle)
 {
     if (value == NULL || needle == NULL) {
@@ -124,17 +209,125 @@ static bool AguiSseHeaderContainsValue(htp_table_t *headers, const char *name, c
     return AguiSseBstrContainsNocase(header->value, needle);
 }
 
+static bool AguiSseRoleAllowed(const char *role)
+{
+    if (role == NULL || role[0] == '\0') {
+        return false;
+    }
+    for (size_t i = 0; agui_valid_roles[i] != NULL; i++) {
+        if (strcasecmp(role, agui_valid_roles[i]) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool AguiSseMessagesLookValid(json_t *messages)
+{
+    if (!json_is_array(messages) || json_array_size(messages) == 0) {
+        return false;
+    }
+
+    const size_t total = json_array_size(messages);
+    const size_t sample = MIN(total, (size_t)AGUI_SSE_MESSAGE_SAMPLE_MAX);
+    size_t inspected = 0;
+
+    for (size_t i = 0; i < sample; i++) {
+        json_t *msg = json_array_get(messages, i);
+        if (!json_is_object(msg)) {
+            return false;
+        }
+        json_t *role = json_object_get(msg, "role");
+        if (!json_is_string(role) || !AguiSseRoleAllowed(json_string_value(role))) {
+            return false;
+        }
+        inspected++;
+    }
+
+    return (inspected > 0);
+}
+
+static bool AguiSseBodyLooksLikeRunAgentInput(const uint8_t *body, uint32_t len)
+{
+    if (body == NULL || len == 0) {
+        return false;
+    }
+
+    json_error_t error;
+    json_t *root = json_loadb((const char *)body, len, JSON_DISABLE_EOF_CHECK, &error);
+    if (root == NULL) {
+        return false;
+    }
+
+    bool looks_valid = false;
+
+    if (json_is_object(root)) {
+        json_t *thread_id = json_object_get(root, "threadId");
+        json_t *run_id = json_object_get(root, "runId");
+        json_t *messages = json_object_get(root, "messages");
+        if (json_is_string(thread_id) && json_string_length(thread_id) > 0 &&
+                json_is_string(run_id) && json_string_length(run_id) > 0 &&
+                AguiSseMessagesLookValid(messages)) {
+            looks_valid = true;
+        }
+    }
+
+    json_decref(root);
+    return looks_valid;
+}
+
+static bool AguiSseInspectRequestBody(htp_tx_t *tx, AguiSseTxData *txmeta)
+{
+    if (tx == NULL || txmeta == NULL) {
+        return false;
+    }
+    HtpTxUserData *htud = (HtpTxUserData *)htp_tx_get_user_data(tx);
+    if (htud == NULL || htud->request_body.sb == NULL) {
+        return false;
+    }
+
+    const uint8_t *body_data = NULL;
+    uint32_t body_len = 0;
+    uint64_t body_offset = 0;
+    if (StreamingBufferGetData(htud->request_body.sb, &body_data, &body_len, &body_offset) == 0 ||
+            body_data == NULL || body_len == 0) {
+        return false;
+    }
+
+    if (body_len > AGUI_SSE_MAX_REQUEST_BODY) {
+        body_len = AGUI_SSE_MAX_REQUEST_BODY;
+    }
+
+    if (AguiSseBodyLooksLikeRunAgentInput(body_data, body_len)) {
+        txmeta->request_has_run_input = true;
+        return true;
+    }
+    return false;
+}
+
 static void AguiSseRequestInspect(htp_tx_t *tx)
 {
     if (!AguiSseIsEnabled() || tx == NULL || tx->request_headers == NULL) {
         return;
     }
-    if (!AguiSseHeaderContainsValue(tx->request_headers, "Accept", "text/event-stream")) {
+    const bool accept_sse = AguiSseHeaderContainsValue(tx->request_headers, "Accept", "text/event-stream");
+    const bool accept_proto =
+            AguiSseHeaderContainsValue(tx->request_headers, "Accept", "application/vnd.ag-ui.event+proto");
+    if (!accept_sse && !accept_proto) {
         return;
     }
+
     AguiSseTxData *txmeta = AguiSseTxDataGetMutable(tx);
     if (txmeta != NULL) {
-        txmeta->request_wants_sse = true;
+        txmeta->request_wants_sse = accept_sse;
+        txmeta->request_accepts_proto = accept_proto;
+        txmeta->request_content_type_json = AguiSseHeaderContainsValue(
+                                                    tx->request_headers, "Content-Type", "application/json") ||
+                AguiSseHeaderContainsValue(tx->request_headers, "Content-Type", "application/vnd.ag-ui+json");
+        if (txmeta->request_content_type_json) {
+            AguiSseInspectRequestBody(tx, txmeta);
+        }
+        AguiSseMaybeConfirm(txmeta);
     }
 }
 
@@ -148,9 +341,6 @@ static void AguiSseFlushEvent(MemBuffer *payload, AguiSseTxData *txmeta)
         return;
     }
 
-    txmeta->event_count++;
-    txmeta->payload_bytes += len;
-
     json_error_t error;
     json_t *root = json_loadb((const char *)MEMBUFFER_BUFFER(payload), len, 0, &error);
     if (root != NULL) {
@@ -159,8 +349,12 @@ static void AguiSseFlushEvent(MemBuffer *payload, AguiSseTxData *txmeta)
             json_t *type = json_object_get(root, "type");
             if (json_is_string(type)) {
                 const char *type_str = json_string_value(type);
-                if (type_str != NULL) {
+                if (type_str != NULL && AguiSseEventTypeLooksValid(type_str)) {
+                    txmeta->event_count++;
+                    txmeta->payload_bytes += len;
+                    txmeta->response_has_valid_events = true;
                     strlcpy(txmeta->last_event_type, type_str, sizeof(txmeta->last_event_type));
+                    AguiSseMaybeConfirm(txmeta);
                 }
             }
         }
@@ -267,8 +461,20 @@ static void AguiSseResponseInspect(htp_tx_t *tx)
         return;
     }
 
-    if (!AguiSseHeaderContainsValue(headers, "Content-Type", "text/event-stream") &&
-            !AguiSseHeaderContainsValue(headers, "Content-Type", "application/vnd.ag-ui.event")) {
+    const bool header_proto =
+            AguiSseHeaderContainsValue(headers, "Content-Type", "application/vnd.ag-ui.event+proto");
+    const bool header_sse =
+            AguiSseHeaderContainsValue(headers, "Content-Type", "text/event-stream");
+    const bool header_json =
+            AguiSseHeaderContainsValue(headers, "Content-Type", "application/vnd.ag-ui.event+json");
+    const bool header_generic =
+            (!header_proto &&
+                    AguiSseHeaderContainsValue(headers, "Content-Type", "application/vnd.ag-ui.event"));
+
+    const bool treat_proto = header_proto;
+    const bool treat_sse = (!treat_proto) && (header_sse || header_json || header_generic);
+
+    if (!treat_proto && !treat_sse) {
         return;
     }
 
@@ -276,6 +482,13 @@ static void AguiSseResponseInspect(htp_tx_t *tx)
     if (txmeta == NULL) {
         return;
     }
+
+    if (treat_proto) {
+        txmeta->response_is_proto = true;
+        AguiSseMaybeConfirm(txmeta);
+        return;
+    }
+
     txmeta->response_is_sse = true;
 
     HtpTxUserData *htud = (HtpTxUserData *)htp_tx_get_user_data(tx);
@@ -292,6 +505,7 @@ static void AguiSseResponseInspect(htp_tx_t *tx)
     }
 
     AguiSseProcessBuffer(body_data, body_len, txmeta);
+    AguiSseMaybeConfirm(txmeta);
 }
 
 void AguiSseOnHttpRequestComplete(Flow *f, htp_tx_t *tx)
@@ -331,6 +545,7 @@ bool AguiSseTestParseSample(
         return false;
     }
     AguiSseTxData txmeta = { 0 };
+    txmeta.request_has_run_input = true;
     AguiSseProcessBuffer((const uint8_t *)payload, (uint32_t)strlen(payload), &txmeta);
     if (out_count != NULL) {
         *out_count = txmeta.event_count;
@@ -338,7 +553,15 @@ bool AguiSseTestParseSample(
     if (last_type != NULL && last_type_len > 0) {
         strlcpy(last_type, txmeta.last_event_type, last_type_len);
     }
-    return (txmeta.event_count > 0);
+    return txmeta.agui_confirmed;
+}
+
+bool AguiSseTestBodyLooksLikeRunAgentInput(const char *body)
+{
+    if (body == NULL) {
+        return false;
+    }
+    return AguiSseBodyLooksLikeRunAgentInput((const uint8_t *)body, (uint32_t)strlen(body));
 }
 
 #include "tests/app-layer-agui-sse.c"
