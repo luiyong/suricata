@@ -175,6 +175,13 @@ static bool OutdatedEvent(const char *raw)
 
 static AppProto AppLayerEventGetProtoByName(char *alproto_name)
 {
+    if (strcasecmp(alproto_name, "a2a") == 0 ||
+            strcasecmp(alproto_name, "jsonrpc") == 0 ||
+            strcasecmp(alproto_name, "mcp") == 0 ||
+            strcasecmp(alproto_name, "agui") == 0) {
+        return ALPROTO_HTTP1;
+    }
+
     AppProto alproto = AppLayerGetProtoByName(alproto_name);
     if (alproto == ALPROTO_HTTP) {
         // app-layer events http refer to http1

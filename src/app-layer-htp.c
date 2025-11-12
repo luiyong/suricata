@@ -63,6 +63,8 @@
 #include "app-layer-htp-libhtp.h"
 #include "app-layer-htp-xff.h"
 #include "app-layer-htp-range.h"
+#include "app-layer-jsonrpc.h"
+#include "app-layer-agui-sse.h"
 #include "app-layer-htp-mem.h"
 
 #include "util-spm.h"
@@ -178,6 +180,46 @@ SCEnumCharMap http_decoder_event_table[] = {
 
     { "TOO_MANY_WARNINGS", HTTP_DECODER_EVENT_TOO_MANY_WARNINGS },
     { "FAILED_PROTOCOL_CHANGE", HTTP_DECODER_EVENT_FAILED_PROTOCOL_CHANGE },
+    { "A2A_AGENT_CARD", HTTP_DECODER_EVENT_A2A_AGENT_CARD },
+    { "JSONRPC_AGENT_CARD", HTTP_DECODER_EVENT_A2A_AGENT_CARD },
+    { "AGENT_CARD", HTTP_DECODER_EVENT_A2A_AGENT_CARD },
+    { "MCP_AGENT_CARD", HTTP_DECODER_EVENT_A2A_AGENT_CARD },
+    { "A2A_STAGE_INIT", HTTP_DECODER_EVENT_A2A_STAGE_INIT },
+    { "JSONRPC_STAGE_INIT", HTTP_DECODER_EVENT_A2A_STAGE_INIT },
+    { "STAGE_INIT", HTTP_DECODER_EVENT_A2A_STAGE_INIT },
+    { "MCP_STAGE_INIT", HTTP_DECODER_EVENT_A2A_STAGE_INIT },
+    { "A2A_STAGE_RPC", HTTP_DECODER_EVENT_A2A_STAGE_RPC },
+    { "JSONRPC_STAGE_RPC", HTTP_DECODER_EVENT_A2A_STAGE_RPC },
+    { "STAGE_RPC", HTTP_DECODER_EVENT_A2A_STAGE_RPC },
+    { "MCP_STAGE_RPC", HTTP_DECODER_EVENT_A2A_STAGE_RPC },
+    { "A2A_STAGE_STREAM", HTTP_DECODER_EVENT_A2A_STAGE_STREAM },
+    { "JSONRPC_STAGE_STREAM", HTTP_DECODER_EVENT_A2A_STAGE_STREAM },
+    { "STAGE_STREAM", HTTP_DECODER_EVENT_A2A_STAGE_STREAM },
+    { "MCP_STAGE_STREAM", HTTP_DECODER_EVENT_A2A_STAGE_STREAM },
+    { "A2A_ANOMALY", HTTP_DECODER_EVENT_A2A_ANOMALY },
+    { "JSONRPC_ANOMALY", HTTP_DECODER_EVENT_A2A_ANOMALY },
+    { "STAGE_ANOMALY", HTTP_DECODER_EVENT_A2A_ANOMALY },
+    { "MCP_ANOMALY", HTTP_DECODER_EVENT_A2A_ANOMALY },
+    { "A2A_AGENT_CARD", HTTP_DECODER_EVENT_A2A_AGENT_CARD },
+    { "JSONRPC_AGENT_CARD", HTTP_DECODER_EVENT_A2A_AGENT_CARD },
+    { "AGENT_CARD", HTTP_DECODER_EVENT_A2A_AGENT_CARD },
+    { "MCP_AGENT_CARD", HTTP_DECODER_EVENT_A2A_AGENT_CARD },
+    { "A2A_STAGE_INIT", HTTP_DECODER_EVENT_A2A_STAGE_INIT },
+    { "JSONRPC_STAGE_INIT", HTTP_DECODER_EVENT_A2A_STAGE_INIT },
+    { "STAGE_INIT", HTTP_DECODER_EVENT_A2A_STAGE_INIT },
+    { "MCP_STAGE_INIT", HTTP_DECODER_EVENT_A2A_STAGE_INIT },
+    { "A2A_STAGE_RPC", HTTP_DECODER_EVENT_A2A_STAGE_RPC },
+    { "JSONRPC_STAGE_RPC", HTTP_DECODER_EVENT_A2A_STAGE_RPC },
+    { "STAGE_RPC", HTTP_DECODER_EVENT_A2A_STAGE_RPC },
+    { "MCP_STAGE_RPC", HTTP_DECODER_EVENT_A2A_STAGE_RPC },
+    { "A2A_STAGE_STREAM", HTTP_DECODER_EVENT_A2A_STAGE_STREAM },
+    { "JSONRPC_STAGE_STREAM", HTTP_DECODER_EVENT_A2A_STAGE_STREAM },
+    { "STAGE_STREAM", HTTP_DECODER_EVENT_A2A_STAGE_STREAM },
+    { "MCP_STAGE_STREAM", HTTP_DECODER_EVENT_A2A_STAGE_STREAM },
+    { "A2A_ANOMALY", HTTP_DECODER_EVENT_A2A_ANOMALY },
+    { "JSONRPC_ANOMALY", HTTP_DECODER_EVENT_A2A_ANOMALY },
+    { "STAGE_ANOMALY", HTTP_DECODER_EVENT_A2A_ANOMALY },
+    { "MCP_ANOMALY", HTTP_DECODER_EVENT_A2A_ANOMALY },
 
     { NULL, -1 },
 };
@@ -380,6 +422,12 @@ static void HtpTxUserDataFree(HtpState *state, HtpTxUserData *htud)
         }
         FileContainerRecycle(&htud->files_ts, &htp_sbcfg);
         FileContainerRecycle(&htud->files_tc, &htp_sbcfg);
+        if (htud->jsonrpc_tx != NULL) {
+            SCFree(htud->jsonrpc_tx);
+        }
+        if (htud->agui_sse_tx != NULL) {
+            SCFree(htud->agui_sse_tx);
+        }
         HTPFree(htud, sizeof(HtpTxUserData));
     }
 }
@@ -2278,6 +2326,8 @@ static int HTPCallbackRequestComplete(htp_tx_t *tx)
     hstate->last_request_data_stamp = abs_right_edge;
     /* request done, do raw reassembly now to inspect state and stream
      * at the same time. */
+    JsonRpcOnHttpRequestComplete(hstate->f, tx);
+    AguiSseOnHttpRequestComplete(hstate->f, tx);
     AppLayerParserTriggerRawStreamReassembly(hstate->f, STREAM_TOSERVER);
     SCReturnInt(HTP_OK);
 }
@@ -2296,6 +2346,9 @@ static int HTPCallbackResponseComplete(htp_tx_t *tx)
     if (hstate == NULL) {
         SCReturnInt(HTP_ERROR);
     }
+
+    JsonRpcOnHttpResponseComplete(hstate->f, tx);
+    AguiSseOnHttpResponseComplete(hstate->f, tx);
 
     /* we have one whole transaction now */
     hstate->transaction_cnt++;
@@ -2326,7 +2379,6 @@ static int HTPCallbackResponseComplete(htp_tx_t *tx)
             htud->tcflags &= ~HTP_FILENAME_SET;
         }
     }
-
     /* response done, do raw reassembly now to inspect state and stream
      * at the same time. */
     AppLayerParserTriggerRawStreamReassembly(hstate->f, STREAM_TOCLIENT);
@@ -3311,6 +3363,8 @@ void RegisterHTPParsers(void)
                 IPPROTO_TCP, ALPROTO_HTTP1, HTTPGetFrameIdByName, HTTPGetFrameNameById);
         /* app-layer-frame-documentation tag end: registering relevant callbacks */
         HTPConfigure();
+        JsonRpcInit();
+        AguiSseInit();
     } else {
         SCLogInfo("Parsed disabled for %s protocol. Protocol detection"
                   "still on.", proto_name);
@@ -7146,6 +7200,8 @@ static void HTPParserRegisterTests(void)
 
     HTPFileParserRegisterTests();
     HTPXFFParserRegisterTests();
+    AppLayerJsonRpcRegisterTests();
+    AppLayerAguiSseRegisterTests();
 }
 #endif /* UNITTESTS */
 

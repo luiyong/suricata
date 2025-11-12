@@ -35,6 +35,7 @@
 
 #include "rust.h"
 #include "app-layer-frames.h"
+#include "app-layer-jsonrpc.h"
 
 #include <htp/htp.h>
 
@@ -140,6 +141,12 @@ enum {
     HTTP_DECODER_EVENT_TOO_MANY_WARNINGS,
 
     HTTP_DECODER_EVENT_FAILED_PROTOCOL_CHANGE,
+
+    HTTP_DECODER_EVENT_A2A_AGENT_CARD,
+    HTTP_DECODER_EVENT_A2A_STAGE_INIT,
+    HTTP_DECODER_EVENT_A2A_STAGE_RPC,
+    HTTP_DECODER_EVENT_A2A_STAGE_STREAM,
+    HTTP_DECODER_EVENT_A2A_ANOMALY,
 };
 
 typedef enum HtpSwfCompressType_ {
@@ -206,6 +213,8 @@ typedef struct HtpBody_ {
 
 /** Now the Body Chunks will be stored per transaction, at
   * the tx user data */
+struct AguiSseTxData_;
+
 typedef struct HtpTxUserData_ {
     /* Body of the request (if any) */
     uint8_t request_body_init;
@@ -241,6 +250,8 @@ typedef struct HtpTxUserData_ {
     AppLayerTxData tx_data;
     FileContainer files_ts;
     FileContainer files_tc;
+    JsonRpcTxData *jsonrpc_tx;
+    struct AguiSseTxData_ *agui_sse_tx;
 } HtpTxUserData;
 
 typedef struct HtpState_ {

@@ -31,6 +31,8 @@ noinst_HEADERS = \
 	app-layer-htp-mem.h \
 	app-layer-htp-range.h \
 	app-layer-htp-xff.h \
+	app-layer-jsonrpc.h \
+	app-layer-jsonrpc-internal.h \
 	app-layer-http2.h \
 	app-layer-ike.h \
 	app-layer-krb5.h \
@@ -412,6 +414,7 @@ noinst_HEADERS = \
 	output-json.h \
 	output-json-http2.h \
 	output-json-http.h \
+	output-json-ai.h \
 	output-json-ike.h \
 	output-json-krb5.h \
 	output-json-metadata.h \
@@ -652,6 +655,10 @@ libsuricata_c_a_SOURCES = \
 	app-layer-htp-mem.c \
 	app-layer-htp-range.c \
 	app-layer-htp-xff.c \
+	app-layer-jsonrpc.c \
+	app-layer-jsonrpc-a2a.c \
+	app-layer-jsonrpc-mcp.c \
+	app-layer-agui-sse.c \
 	app-layer-http2.c \
 	app-layer-ike.c \
 	app-layer-krb5.c \
@@ -1030,6 +1037,7 @@ libsuricata_c_a_SOURCES = \
 	output-json-ftp.c \
 	output-json-http2.c \
 	output-json-http.c \
+	output-json-ai.c \
 	output-json-ike.c \
 	output-json-krb5.c \
 	output-json-metadata.c \
@@ -1257,6 +1265,7 @@ EXTRA_DIST = \
 	tests/detect-ttl.c \
 	tests/source-pcap.c \
 	tests/app-layer-htp-file.c \
+	tests/app-layer-jsonrpc.c \
 	tests/detect-engine-alert.c \
 	tests/detect-engine-content-inspection.c \
 	tests/detect-icmpv4hdr.c \

@@ -53,6 +53,7 @@
 #include "output-eve-stream.h"
 #include "log-httplog.h"
 #include "output-json-http.h"
+#include "output-json-ai.h"
 #include "output-json-dns.h"
 #include "output-json-modbus.h"
 #include "log-tlslog.h"
@@ -1056,6 +1057,7 @@ void OutputRegisterLoggers(void)
     /* http log */
     LogHttpLogRegister();
     JsonHttpLogRegister();
+    JsonRpcLogRegister();
     JsonHttp2LogRegister();
     /* tls log */
     LogTlsLogRegister();
