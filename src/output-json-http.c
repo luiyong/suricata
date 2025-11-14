@@ -311,15 +311,38 @@ static void EveHttpLogJSONExtended(JsonBuilder *js, htp_tx_t *tx)
 static void EveHttpLogJSONHeaders(
         JsonBuilder *js, uint32_t direction, htp_tx_t *tx, LogHttpFileCtx *http_ctx)
 {
-    htp_table_t * headers = direction & LOG_HTTP_REQ_HEADERS ?
-        tx->request_headers : tx->response_headers;
+    htp_table_t *headers = (direction & LOG_HTTP_REQ_HEADERS) ?
+            tx->request_headers : tx->response_headers;
+    const bool is_request = (direction & LOG_HTTP_REQ_HEADERS) != 0;
     char name[MAX_SIZE_HEADER_NAME] = {0};
     char value[MAX_SIZE_HEADER_VALUE] = {0};
-    size_t n = htp_table_size(headers);
+    size_t n = (headers != NULL) ? htp_table_size(headers) : 0;
     JsonBuilderMark mark = { 0, 0, 0 };
     jb_get_mark(js, &mark);
     bool array_empty = true;
-    jb_open_array(js, direction & LOG_HTTP_REQ_HEADERS ? "request_headers" : "response_headers");
+    jb_open_array(js, is_request ? "request_headers" : "response_headers");
+
+    const char *scheme_header = NULL;
+    bool add_scheme_header = false;
+    if (is_request) {
+        scheme_header = HtpTxGetScheme(tx);
+        if (scheme_header != NULL && scheme_header[0] != '\0') {
+            htp_header_t *existing = headers != NULL ?
+                    (htp_header_t *)htp_table_get_c(headers, ":scheme") :
+                    NULL;
+            if (existing == NULL) {
+                add_scheme_header = true;
+            }
+        }
+    }
+    if (add_scheme_header) {
+        array_empty = false;
+        jb_start_object(js);
+        jb_set_string(js, "name", ":scheme");
+        jb_set_string(js, "value", scheme_header);
+        jb_close(js);
+    }
+
     for (size_t i = 0; i < n; i++) {
         htp_header_t *h = htp_table_get_index(headers, i, NULL);
         if ((http_ctx->flags & direction) == 0 && http_ctx->fields != 0) {

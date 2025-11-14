@@ -7181,9 +7181,37 @@ static void HTPParserRegisterTests(void)
     HTPFileParserRegisterTests();
     HTPXFFParserRegisterTests();
     AppLayerJsonRpcRegisterTests();
-    AppLayerAguiSseRegisterTests();
+AppLayerAguiSseRegisterTests();
 }
 #endif /* UNITTESTS */
+
+void HtpTxSetScheme(htp_tx_t *tx, const char *scheme)
+{
+    if (tx == NULL) {
+        return;
+    }
+    HtpTxUserData *htud = (HtpTxUserData *)htp_tx_get_user_data(tx);
+    if (htud == NULL) {
+        return;
+    }
+    if (scheme == NULL || scheme[0] == '\0') {
+        htud->ai_scheme[0] = '\0';
+        return;
+    }
+    strlcpy(htud->ai_scheme, scheme, sizeof(htud->ai_scheme));
+}
+
+const char *HtpTxGetScheme(const htp_tx_t *tx)
+{
+    if (tx == NULL) {
+        return NULL;
+    }
+    const HtpTxUserData *htud = (const HtpTxUserData *)htp_tx_get_user_data((htp_tx_t *)tx);
+    if (htud == NULL || htud->ai_scheme[0] == '\0') {
+        return NULL;
+    }
+    return htud->ai_scheme;
+}
 
 /**
  * @}

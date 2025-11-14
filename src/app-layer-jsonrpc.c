@@ -527,6 +527,14 @@ static void JsonRpcEmitAnomalyEvent(htp_tx_t *tx, uint8_t service_id)
     JsonRpcSetDecoderEvent(tx, event_id);
 }
 
+static void JsonRpcApplyScheme(htp_tx_t *tx, const JsonRpcServiceDef *service)
+{
+    if (service == NULL || service->event_type == NULL) {
+        return;
+    }
+    HtpTxSetScheme(tx, service->event_type);
+}
+
 static bool JsonRpcBstrContainsNocase(const bstr *value, const char *needle)
 {
     if (value == NULL || needle == NULL) {
@@ -664,6 +672,7 @@ static void JsonRpcMaybeDetectStreamUpgrade(
         }
     }
 
+    JsonRpcApplyScheme(tx, service);
     JsonRpcStagePromote(f, state, service, JSONRPC_STAGE_STREAM);
     JsonRpcEmitStageEvent(tx, JSONRPC_STAGE_STREAM, service->id);
 }
@@ -1021,6 +1030,7 @@ static void JsonRpcInspectRpcRequest(
         return;
     }
     JsonRpcCaptureHttpHints(tx, txmeta);
+    JsonRpcApplyScheme(tx, active_service);
 
     if (active_service->id == JSONRPC_SERVICE_MCP &&
             !JsonRpcMcpHttpHintsSatisfied(state, txmeta)) {
@@ -1231,6 +1241,7 @@ static void JsonRpcHandleDiscovery(Flow *f, JsonRpcFlowState *state,
         txmeta->service_id = service->id;
     }
 
+    JsonRpcApplyScheme(tx, service);
     if (state->stage > JSONRPC_STAGE_DISCOVERY) {
         JsonRpcEmitAnomalyEvent(tx, service->id);
     }

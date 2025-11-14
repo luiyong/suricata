@@ -257,6 +257,7 @@ typedef struct HtpTxUserData_ {
     FileContainer files_tc;
     JsonRpcTxData *jsonrpc_tx;
     struct AguiSseTxData_ *agui_sse_tx;
+    char ai_scheme[16];
 } HtpTxUserData;
 
 typedef struct HtpState_ {
@@ -315,6 +316,8 @@ void HtpConfigCreateBackup(void);
 void HtpConfigRestoreBackup(void);
 
 void *HtpGetTxForH2(void *);
+void HtpTxSetScheme(struct htp_tx_t *tx, const char *scheme);
+const char *HtpTxGetScheme(const struct htp_tx_t *tx);
 
 #endif	/* __APP_LAYER_HTP_H__ */
 

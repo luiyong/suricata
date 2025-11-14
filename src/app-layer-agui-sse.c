@@ -42,6 +42,7 @@ static bool agui_sse_initialized = false;
 static bool agui_sse_enabled = true;
 
 static void AguiSseMaybeConfirm(AguiSseTxData *txmeta);
+static void AguiSseApplySchemeIfReady(htp_tx_t *tx, AguiSseTxData *txmeta);
 static bool AguiSseBodyLooksLikeRunAgentInput(const uint8_t *body, uint32_t len);
 static bool AguiSseInspectRequestBody(htp_tx_t *tx, AguiSseTxData *txmeta);
 
@@ -131,6 +132,17 @@ static void AguiSseMaybeConfirm(AguiSseTxData *txmeta)
     }
     if (AguiSseRequestConfidence(txmeta) && AguiSseResponseConfidence(txmeta)) {
         txmeta->agui_confirmed = true;
+    }
+}
+
+static void AguiSseApplySchemeIfReady(htp_tx_t *tx, AguiSseTxData *txmeta)
+{
+    if (tx == NULL || txmeta == NULL) {
+        return;
+    }
+    if (txmeta->agui_confirmed && !txmeta->scheme_applied) {
+        HtpTxSetScheme(tx, "ag-ui");
+        txmeta->scheme_applied = true;
     }
 }
 
@@ -328,6 +340,7 @@ static void AguiSseRequestInspect(htp_tx_t *tx)
             AguiSseInspectRequestBody(tx, txmeta);
         }
         AguiSseMaybeConfirm(txmeta);
+        AguiSseApplySchemeIfReady(tx, txmeta);
     }
 }
 
@@ -486,6 +499,7 @@ static void AguiSseResponseInspect(htp_tx_t *tx)
     if (treat_proto) {
         txmeta->response_is_proto = true;
         AguiSseMaybeConfirm(txmeta);
+        AguiSseApplySchemeIfReady(tx, txmeta);
         return;
     }
 
@@ -506,6 +520,7 @@ static void AguiSseResponseInspect(htp_tx_t *tx)
 
     AguiSseProcessBuffer(body_data, body_len, txmeta);
     AguiSseMaybeConfirm(txmeta);
+    AguiSseApplySchemeIfReady(tx, txmeta);
 }
 
 void AguiSseOnHttpRequestComplete(Flow *f, htp_tx_t *tx)

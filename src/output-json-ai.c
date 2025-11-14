@@ -96,6 +96,15 @@ static const char *JsonRpcResolveScheme(const JsonRpcServiceDef *service)
     return NULL;
 }
 
+static const char *JsonRpcDetermineScheme(htp_tx_t *tx, const JsonRpcServiceDef *service)
+{
+    const char *scheme = HtpTxGetScheme(tx);
+    if (scheme != NULL && scheme[0] != '\0') {
+        return scheme;
+    }
+    return JsonRpcResolveScheme(service);
+}
+
 static bool JsonRpcEmitCardEvent(
         ThreadVars *tv, OutputJsonThreadCtx *thread, const Packet *p, Flow *f, htp_tx_t *tx,
         const JsonRpcTxData *txmeta)
@@ -118,7 +127,7 @@ static bool JsonRpcEmitCardEvent(
     jb_set_string(jb, "service", service_name);
     jb_set_string(jb, "event", "agent_card_discovery");
     jb_set_string(jb, "stage", JsonRpcStageToString(JSONRPC_STAGE_DISCOVERY));
-    JsonRpcAppendHttpMetadata(jb, tx, JsonRpcResolveScheme(service));
+    JsonRpcAppendHttpMetadata(jb, tx, JsonRpcDetermineScheme(tx, service));
 
     if (txmeta->card_hash_hex[0] != '\0') {
         jb_open_object(jb, "card");
@@ -157,7 +166,7 @@ static bool JsonRpcEmitRpcEvent(
     jb_set_string(jb, "service", service_name);
     jb_set_string(jb, "event", "rpc_call");
     jb_set_string(jb, "stage", JsonRpcStageToString(txmeta->rpc_stage));
-    JsonRpcAppendHttpMetadata(jb, tx, JsonRpcResolveScheme(service));
+    JsonRpcAppendHttpMetadata(jb, tx, JsonRpcDetermineScheme(tx, service));
 
     jb_open_object(jb, "rpc");
     if (txmeta->rpc_method[0] != '\0') {
@@ -204,7 +213,7 @@ static bool JsonRpcEmitRpcResultEvent(
     jb_set_string(jb, "service", service_name);
     jb_set_string(jb, "event", "rpc_result");
     jb_set_string(jb, "stage", JsonRpcStageToString(txmeta->rpc_stage));
-    JsonRpcAppendHttpMetadata(jb, tx, JsonRpcResolveScheme(service));
+    JsonRpcAppendHttpMetadata(jb, tx, JsonRpcDetermineScheme(tx, service));
 
     jb_open_object(jb, "rpc");
     if (txmeta->rpc_method[0] != '\0') {
@@ -250,7 +259,7 @@ static bool JsonRpcEmitStreamEvent(
     jb_set_string(jb, "service", service_name);
     jb_set_string(jb, "event", "stream_upgrade");
     jb_set_string(jb, "stage", JsonRpcStageToString(txmeta->stream_stage));
-    JsonRpcAppendHttpMetadata(jb, tx, JsonRpcResolveScheme(service));
+    JsonRpcAppendHttpMetadata(jb, tx, JsonRpcDetermineScheme(tx, service));
 
     if (txmeta->stream_type[0] != '\0') {
         jb_open_object(jb, "stream");

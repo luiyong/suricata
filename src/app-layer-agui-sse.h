@@ -33,6 +33,7 @@ typedef struct AguiSseTxData_ {
     bool response_has_valid_events;
     bool event_logged;
     bool agui_confirmed;
+    bool scheme_applied;
     uint32_t event_count;
     uint32_t json_parsed;
     uint32_t json_failed;
