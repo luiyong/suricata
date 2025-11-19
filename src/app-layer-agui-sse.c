@@ -18,16 +18,21 @@
 #include "suricata-common.h"
 
 #include <stdint.h>
+#include <inttypes.h>
 
 #include "app-layer-agui-sse.h"
 
 #include "app-layer-htp.h"
+#include "counters.h"
 #include "conf.h"
+#include "flow-storage.h"
+#include "flow.h"
 #include "htp/htp.h"
 #include "stream-tcp-private.h"
 #include "util-buffer.h"
 #include "util-mem.h"
 #include "util-streaming-buffer.h"
+#include "util-debug.h"
 
 #include <jansson.h>
 
@@ -41,10 +46,85 @@ static const char *const agui_valid_roles[] = {
 static bool agui_sse_initialized = false;
 static bool agui_sse_enabled = true;
 
+typedef struct AguiSseFlowState_ {
+    bool counted;
+} AguiSseFlowState;
+
+static FlowStorageId agui_sse_flow_storage_id = { .id = -1 };
+static bool agui_sse_stats_registered = false;
+static SC_ATOMIC_DECLARE(uint64_t, agui_sse_flow_count);
+
 static void AguiSseMaybeConfirm(AguiSseTxData *txmeta);
 static void AguiSseApplySchemeIfReady(htp_tx_t *tx, AguiSseTxData *txmeta);
 static bool AguiSseBodyLooksLikeRunAgentInput(const uint8_t *body, uint32_t len);
 static bool AguiSseInspectRequestBody(htp_tx_t *tx, AguiSseTxData *txmeta);
+static void AguiSseRequestInspect(Flow *f, htp_tx_t *tx);
+static void AguiSseResponseInspect(Flow *f, htp_tx_t *tx);
+
+static void *AguiSseFlowStateAlloc(unsigned int size)
+{
+    return SCCalloc(1, size);
+}
+
+static void AguiSseFlowStateFree(void *ptr)
+{
+    if (ptr != NULL) {
+        SCFree(ptr);
+    }
+}
+
+static void AguiSseRegisterFlowStorage(void)
+{
+    if (agui_sse_flow_storage_id.id >= 0) {
+        return;
+    }
+
+    agui_sse_flow_storage_id = FlowStorageRegister("agui_sse_flow_state",
+            sizeof(AguiSseFlowState), AguiSseFlowStateAlloc, AguiSseFlowStateFree);
+    if (agui_sse_flow_storage_id.id < 0) {
+        FatalError("agui_sse_flow_state storage registration failed");
+    }
+}
+
+static uint64_t AguiSseStatsGetFlows(void)
+{
+    return SC_ATOMIC_GET(agui_sse_flow_count);
+}
+
+void AguiSseRegisterGlobalCounters(void)
+{
+    if (agui_sse_stats_registered) {
+        return;
+    }
+    StatsRegisterGlobalCounter("app_layer.flow.http.agui", AguiSseStatsGetFlows);
+    agui_sse_stats_registered = true;
+}
+
+static void AguiSseMarkFlowConfirmed(Flow *f, const char *reason)
+{
+    if (f == NULL || agui_sse_flow_storage_id.id < 0) {
+        return;
+    }
+
+    AguiSseFlowState *state = FlowGetStorageById(f, agui_sse_flow_storage_id);
+    if (state == NULL) {
+        state = FlowAllocStorageById(f, agui_sse_flow_storage_id);
+        if (state == NULL) {
+            return;
+        }
+        memset(state, 0x00, sizeof(*state));
+    }
+
+    if (state->counted) {
+        return;
+    }
+
+    state->counted = true;
+    SC_ATOMIC_ADD(agui_sse_flow_count, 1);
+
+    const char *why = (reason != NULL) ? reason : "unspecified";
+    SCLogInfo("agui flow %" PRId64 " confirmed (%s)", FlowGetId(f), why);
+}
 
 static void AguiSseLoadConfig(void)
 {
@@ -66,6 +146,7 @@ void AguiSseInit(void)
         return;
     }
 
+    AguiSseRegisterFlowStorage();
     AppLayerHtpEnableRequestBodyCallback();
     AppLayerHtpEnableResponseBodyCallback();
     agui_sse_initialized = true;
@@ -317,7 +398,7 @@ static bool AguiSseInspectRequestBody(htp_tx_t *tx, AguiSseTxData *txmeta)
     return false;
 }
 
-static void AguiSseRequestInspect(htp_tx_t *tx)
+static void AguiSseRequestInspect(Flow *f, htp_tx_t *tx)
 {
     if (!AguiSseIsEnabled() || tx == NULL || tx->request_headers == NULL) {
         return;
@@ -336,11 +417,19 @@ static void AguiSseRequestInspect(htp_tx_t *tx)
         txmeta->request_content_type_json = AguiSseHeaderContainsValue(
                                                     tx->request_headers, "Content-Type", "application/json") ||
                 AguiSseHeaderContainsValue(tx->request_headers, "Content-Type", "application/vnd.ag-ui+json");
+        if (f != NULL) {
+            SCLogInfo("agui flow %" PRId64 " request hints sse=%s proto=%s content-json=%s",
+                    FlowGetId(f), accept_sse ? "yes" : "no", accept_proto ? "yes" : "no",
+                    txmeta->request_content_type_json ? "yes" : "no");
+        }
         if (txmeta->request_content_type_json) {
             AguiSseInspectRequestBody(tx, txmeta);
         }
         AguiSseMaybeConfirm(txmeta);
         AguiSseApplySchemeIfReady(tx, txmeta);
+        if (f != NULL && txmeta->agui_confirmed) {
+            AguiSseMarkFlowConfirmed(f, "request_inspection");
+        }
     }
 }
 
@@ -463,7 +552,7 @@ static void AguiSseProcessBuffer(const uint8_t *data, uint32_t len, AguiSseTxDat
     MemBufferFree(payload);
 }
 
-static void AguiSseResponseInspect(htp_tx_t *tx)
+static void AguiSseResponseInspect(Flow *f, htp_tx_t *tx)
 {
     if (!AguiSseIsEnabled() || tx == NULL) {
         return;
@@ -498,12 +587,21 @@ static void AguiSseResponseInspect(htp_tx_t *tx)
 
     if (treat_proto) {
         txmeta->response_is_proto = true;
+        if (f != NULL) {
+            SCLogInfo("agui flow %" PRId64 " response indicates proto stream", FlowGetId(f));
+        }
         AguiSseMaybeConfirm(txmeta);
         AguiSseApplySchemeIfReady(tx, txmeta);
+        if (f != NULL && txmeta->agui_confirmed) {
+            AguiSseMarkFlowConfirmed(f, "proto_response");
+        }
         return;
     }
 
     txmeta->response_is_sse = true;
+    if (f != NULL) {
+        SCLogInfo("agui flow %" PRId64 " response indicates SSE stream", FlowGetId(f));
+    }
 
     HtpTxUserData *htud = (HtpTxUserData *)htp_tx_get_user_data(tx);
     if (htud == NULL || htud->response_body.sb == NULL) {
@@ -519,26 +617,32 @@ static void AguiSseResponseInspect(htp_tx_t *tx)
     }
 
     AguiSseProcessBuffer(body_data, body_len, txmeta);
+    if (f != NULL && txmeta->event_count > 0) {
+        SCLogInfo("agui flow %" PRId64 " parsed %u SSE events (last=%s)",
+                FlowGetId(f), txmeta->event_count,
+                (txmeta->last_event_type[0] != '\0') ? txmeta->last_event_type : "unknown");
+    }
     AguiSseMaybeConfirm(txmeta);
     AguiSseApplySchemeIfReady(tx, txmeta);
+    if (f != NULL && txmeta->agui_confirmed) {
+        AguiSseMarkFlowConfirmed(f, "sse_response");
+    }
 }
 
 void AguiSseOnHttpRequestComplete(Flow *f, htp_tx_t *tx)
 {
-    (void)f;
     if (!AguiSseIsEnabled()) {
         return;
     }
-    AguiSseRequestInspect(tx);
+    AguiSseRequestInspect(f, tx);
 }
 
 void AguiSseOnHttpResponseComplete(Flow *f, htp_tx_t *tx)
 {
-    (void)f;
     if (!AguiSseIsEnabled()) {
         return;
     }
-    AguiSseResponseInspect(tx);
+    AguiSseResponseInspect(f, tx);
 }
 
 void AguiSseTxDataMarkLogged(htp_tx_t *tx)

@@ -322,25 +322,15 @@ static void EveHttpLogJSONHeaders(
     bool array_empty = true;
     jb_open_array(js, is_request ? "request_headers" : "response_headers");
 
-    const char *scheme_header = NULL;
-    bool add_scheme_header = false;
     if (is_request) {
-        scheme_header = HtpTxGetScheme(tx);
+        const char *scheme_header = HtpTxGetScheme(tx);
         if (scheme_header != NULL && scheme_header[0] != '\0') {
-            htp_header_t *existing = headers != NULL ?
-                    (htp_header_t *)htp_table_get_c(headers, ":scheme") :
-                    NULL;
-            if (existing == NULL) {
-                add_scheme_header = true;
-            }
+            array_empty = false;
+            jb_start_object(js);
+            jb_set_string(js, "name", ":scheme");
+            jb_set_string(js, "value", scheme_header);
+            jb_close(js);
         }
-    }
-    if (add_scheme_header) {
-        array_empty = false;
-        jb_start_object(js);
-        jb_set_string(js, "name", ":scheme");
-        jb_set_string(js, "value", scheme_header);
-        jb_close(js);
     }
 
     for (size_t i = 0; i < n; i++) {

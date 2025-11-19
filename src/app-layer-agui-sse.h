@@ -46,6 +46,7 @@ void AguiSseOnHttpRequestComplete(Flow *f, struct htp_tx_t *tx);
 void AguiSseOnHttpResponseComplete(Flow *f, struct htp_tx_t *tx);
 const AguiSseTxData *AguiSseGetTxData(const struct htp_tx_t *tx);
 void AguiSseTxDataMarkLogged(struct htp_tx_t *tx);
+void AguiSseRegisterGlobalCounters(void);
 
 #ifdef UNITTESTS
 void AppLayerAguiSseRegisterTests(void);

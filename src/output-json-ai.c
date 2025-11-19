@@ -26,23 +26,6 @@
 #include "app-layer-jsonrpc.h"
 #include "app-layer-agui-sse.h"
 
-static const char *JsonRpcStageToString(JsonRpcStage stage)
-{
-    switch (stage) {
-        case JSONRPC_STAGE_DISCOVERY:
-            return "card";
-        case JSONRPC_STAGE_INIT:
-            return "init";
-        case JSONRPC_STAGE_RPC:
-            return "rpc";
-        case JSONRPC_STAGE_STREAM:
-            return "stream";
-        case JSONRPC_STAGE_NONE:
-        default:
-            return "none";
-    }
-}
-
 static void JsonRpcAppendHttpMetadata(
         JsonBuilder *jb, const htp_tx_t *tx, const char *scheme_header)
 {

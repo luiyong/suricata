@@ -69,7 +69,7 @@ typedef struct JsonRpcFlowState_ {
     uint8_t service_id;
     uint8_t stage;
     bool host_cached;
-    uint8_t padding;
+    bool flow_accounted;
     SCTime_t last_seen;
 } JsonRpcFlowState;
 
@@ -119,6 +119,7 @@ void JsonRpcTxDataMarkRpcLogged(struct htp_tx_t *tx);
 void JsonRpcTxDataMarkRpcResultLogged(struct htp_tx_t *tx);
 void JsonRpcTxDataMarkStreamLogged(struct htp_tx_t *tx);
 const JsonRpcServiceDef *JsonRpcServiceLookup(uint8_t service_id);
+const char *JsonRpcStageToString(JsonRpcStage stage);
 
 #ifdef UNITTESTS
 typedef struct JsonRpcTestMessage_ {

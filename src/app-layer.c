@@ -31,6 +31,7 @@
 #include "app-layer-protos.h"
 #include "app-layer-expectation.h"
 #include "app-layer-ftp.h"
+#include "app-layer-agui-sse.h"
 #include "app-layer-detect-proto.h"
 #include "app-layer-frames.h"
 #include "app-layer-jsonrpc-internal.h"
@@ -1066,6 +1067,7 @@ void AppLayerRegisterGlobalCounters(void)
     StatsRegisterGlobalCounter("ftp.memcap", FTPMemcapGlobalCounter);
     StatsRegisterGlobalCounter("app_layer.expectations", ExpectationGetCounter);
     JsonRpcRegisterGlobalCounters();
+    AguiSseRegisterGlobalCounters();
 }
 
 #define IPPROTOS_MAX 2
