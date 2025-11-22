@@ -961,6 +961,16 @@ app-layer:
       enabled: yes
     ag-ui-sse:
       enabled: yes
+      # Enable parsing for the standard SSE/Proto responses defined by AG-UI.
+      standard-mode: yes
+      # Enable compatibility parsing for CopilotKit GraphQL multipart streams.
+      graphql-mode: yes
+      # Maximum bytes from the HTTP request body inspected for agent input heuristics.
+      max-request-body: 131072
+      # Maximum number of RunAgentInput messages sampled when validating roles.
+      message-sample-max: 5
+      # Maximum allowed boundary length for multipart parsing.
+      multipart-boundary-max: 64
     smtp:
       enabled: yes
       raw-extraction: no

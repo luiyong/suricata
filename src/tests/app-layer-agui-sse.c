@@ -63,9 +63,35 @@ static int AguiSseRunAgentInputNegativeTest(void)
     PASS;
 }
 
+static int AguiSseMultipartParseTest(void)
+{
+    static const char boundary[] = "copilotkit-boundary";
+    static const char body[] =
+            "--copilotkit-boundary\r\n"
+            "Content-Type: application/json\r\n"
+            "\r\n"
+            "{\"incremental\":[{\"items\":[{\"type\":\"TEXT_MESSAGE_START\"}]}]}\r\n"
+            "\r\n"
+            "--copilotkit-boundary\r\n"
+            "Content-Type: application/json\r\n"
+            "\r\n"
+            "{\"incremental\":[{\"items\":[{\"type\":\"RUN_FINISHED\"}]}]}\r\n"
+            "\r\n"
+            "--copilotkit-boundary--\r\n";
+
+    uint32_t count = 0;
+    char last_type[32];
+
+    FAIL_IF(!AguiSseTestParseMultipartSample(boundary, body, &count, last_type, sizeof(last_type)));
+    FAIL_IF(count != 2);
+    FAIL_IF(strcmp(last_type, "RUN_FINISHED") != 0);
+    PASS;
+}
+
 void AppLayerAguiSseRegisterTests(void)
 {
     UtRegisterTest("AguiSseParseSampleTest", AguiSseParseSampleTest);
     UtRegisterTest("AguiSseRunAgentInputPositiveTest", AguiSseRunAgentInputPositiveTest);
     UtRegisterTest("AguiSseRunAgentInputNegativeTest", AguiSseRunAgentInputNegativeTest);
+    UtRegisterTest("AguiSseMultipartParseTest", AguiSseMultipartParseTest);
 }
