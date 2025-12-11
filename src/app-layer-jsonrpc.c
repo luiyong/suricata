@@ -22,6 +22,7 @@
 #include <ctype.h>
 #include <inttypes.h>
 #include <limits.h>
+#include <stdarg.h>
 #include <string.h>
 #include <strings.h>
 
@@ -1163,6 +1164,13 @@ static void JsonRpcInspectRpcRequest(
     }
     JsonRpcStagePromote(f, state, active_service, target_stage);
     JsonRpcEmitStageEvent(tx, target_stage, active_service->id);
+    JsonRpcLogFlowMessage(f,
+            "rpc request stage=%s method=%s id=%s size=%u params=%u"
+            , JsonRpcStageToString(target_stage)
+            , txmeta->rpc_method
+            , txmeta->rpc_id
+            , txmeta->rpc_size
+            , txmeta->rpc_params_len);
 
     txmeta->service_id = active_service->id;
     txmeta->rpc_request = true;
@@ -1231,6 +1239,11 @@ static void JsonRpcInspectRpcResponse(
     txmeta->rpc_response_error = msg.has_error;
     txmeta->rpc_result_size = body_len;
     txmeta->rpc_stage = MAX(txmeta->rpc_stage, state->stage);
+    JsonRpcLogFlowMessage(f,
+            "rpc response stage=%s size=%u error=%s",
+            JsonRpcStageToString(txmeta->rpc_stage),
+            txmeta->rpc_result_size,
+            msg.has_error ? "yes" : "no");
 
     txmeta->rpc_id_match = false;
     if (msg.has_id && txmeta->rpc_id[0] != '\0') {
@@ -1400,6 +1413,7 @@ void JsonRpcOnHttpResponseComplete(Flow *f, htp_tx_t *tx)
                     txmeta->card_size = body_len;
                     txmeta->agent_card_ready = true;
                     txmeta->agent_card_valid = true;
+                    JsonRpcLogFlowMessage(f, "agent_card size=%u", txmeta->card_size);
                 }
             }
         }
@@ -1438,19 +1452,28 @@ void JsonRpcOnHttpRequestComplete(Flow *f, htp_tx_t *tx)
     if (is_get && tx->parsed_uri != NULL && tx->parsed_uri->path != NULL) {
         const JsonRpcServiceDef *matched = JsonRpcMatchDiscoveryByPath(tx->parsed_uri->path);
         if (matched != NULL) {
-            JsonRpcHandleDiscovery(f, state, matched, tx);
-            service = matched;
-        }
+            char path_buf[128];
+            JsonRpcLogFlowMessage(f, "discovery request path=%s",
+                    JsonRpcBstrToC(tx->parsed_uri->path, path_buf, sizeof(path_buf)));
+        JsonRpcHandleDiscovery(f, state, matched, tx);
+        service = matched;
+        JsonRpcLogFlowMessage(f, "request classified via discovery path=%s", matched->name);
+    }
     }
 
     if (service == NULL && state->service_id != JSONRPC_SERVICE_UNKNOWN) {
         service = JsonRpcServiceFindById(state->service_id);
+        if (service != NULL) {
+            JsonRpcLogFlowMessage(f, "request using cached service %s", service->name);
+        }
     }
     if (service == NULL && is_post && txmeta != NULL &&
             JsonRpcHttpHintsSuggestMcp(&txmeta->http)) {
         service = JsonRpcServiceFindById(JSONRPC_SERVICE_MCP);
         if (service != NULL) {
             state->service_id = service->id;
+            JsonRpcLogFlowMessage(f, "request classified via HTTP hints service=%s",
+                    service->name != NULL ? service->name : "unknown");
         }
     }
 
@@ -1604,3 +1627,41 @@ void AppLayerJsonRpcRegisterTests(void);
 #include "tests/app-layer-jsonrpc.c"
 
 #endif /* UNITTESTS */
+static void JsonRpcLogFlowMessage(const Flow *f, const char *fmt, ...)
+{
+    if (fmt == NULL) {
+        return;
+    }
+
+    char buffer[256];
+    va_list ap;
+    va_start(ap, fmt);
+    (void)vsnprintf(buffer, sizeof(buffer), fmt, ap);
+    va_end(ap);
+
+    if (f != NULL) {
+        SCLogInfo("jsonrpc flow %" PRId64 " %s", FlowGetId(f), buffer);
+    } else {
+        SCLogInfo("jsonrpc %s", buffer);
+    }
+}
+
+static const char *JsonRpcBstrToC(const bstr *value, char *out, size_t out_len)
+{
+    if (out == NULL || out_len == 0) {
+        return "";
+    }
+    out[0] = '\0';
+    if (value == NULL) {
+        return out;
+    }
+    size_t len = (size_t)bstr_len(value);
+    if (len >= out_len) {
+        len = out_len - 1;
+    }
+    if (len > 0) {
+        memcpy(out, bstr_ptr(value), len);
+    }
+    out[len] = '\0';
+    return out;
+}
