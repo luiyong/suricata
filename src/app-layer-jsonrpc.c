@@ -82,6 +82,45 @@ static JsonRpcConfig jsonrpc_config = {
 };
 static JsonRpcServiceStats jsonrpc_service_stats[JSONRPC_SERVICE_MAX];
 
+static void JsonRpcLogFlowMessage(const Flow *f, const char *fmt, ...)
+{
+    if (fmt == NULL) {
+        return;
+    }
+
+    char buffer[256];
+    va_list ap;
+    va_start(ap, fmt);
+    (void)vsnprintf(buffer, sizeof(buffer), fmt, ap);
+    va_end(ap);
+
+    if (f != NULL) {
+        SCLogInfo("jsonrpc flow %" PRId64 " %s", FlowGetId(f), buffer);
+    } else {
+        SCLogInfo("jsonrpc %s", buffer);
+    }
+}
+
+static const char *JsonRpcBstrToC(const bstr *value, char *out, size_t out_len)
+{
+    if (out == NULL || out_len == 0) {
+        return "";
+    }
+    out[0] = '\0';
+    if (value == NULL) {
+        return out;
+    }
+    size_t len = (size_t)bstr_len(value);
+    if (len >= out_len) {
+        len = out_len - 1;
+    }
+    if (len > 0) {
+        memcpy(out, bstr_ptr(value), len);
+    }
+    out[len] = '\0';
+    return out;
+}
+
 static inline bool JsonRpcAnyServiceEnabled(void)
 {
     return jsonrpc_config.a2a_enabled || jsonrpc_config.mcp_enabled;
@@ -1627,41 +1666,3 @@ void AppLayerJsonRpcRegisterTests(void);
 #include "tests/app-layer-jsonrpc.c"
 
 #endif /* UNITTESTS */
-static void JsonRpcLogFlowMessage(const Flow *f, const char *fmt, ...)
-{
-    if (fmt == NULL) {
-        return;
-    }
-
-    char buffer[256];
-    va_list ap;
-    va_start(ap, fmt);
-    (void)vsnprintf(buffer, sizeof(buffer), fmt, ap);
-    va_end(ap);
-
-    if (f != NULL) {
-        SCLogInfo("jsonrpc flow %" PRId64 " %s", FlowGetId(f), buffer);
-    } else {
-        SCLogInfo("jsonrpc %s", buffer);
-    }
-}
-
-static const char *JsonRpcBstrToC(const bstr *value, char *out, size_t out_len)
-{
-    if (out == NULL || out_len == 0) {
-        return "";
-    }
-    out[0] = '\0';
-    if (value == NULL) {
-        return out;
-    }
-    size_t len = (size_t)bstr_len(value);
-    if (len >= out_len) {
-        len = out_len - 1;
-    }
-    if (len > 0) {
-        memcpy(out, bstr_ptr(value), len);
-    }
-    out[len] = '\0';
-    return out;
-}
