@@ -45,11 +45,10 @@ impl DHCPLogger {
                 DHCPOptionWrapper::Generic(option) => {
                     #[allow(clippy::single_match)]
                     match code {
-                        DHCP_OPT_TYPE => {
-                            if !option.data.is_empty() {
+                        DHCP_OPT_TYPE
+                            if !option.data.is_empty() => {
                                 return Some(option.data[0]);
                             }
-                        }
                         _ => {}
                     }
                 }
@@ -111,18 +110,16 @@ impl DHCPLogger {
                 }
                 DHCPOptionWrapper::TimeValue(ref time_value) => {
                     match code {
-                        DHCP_OPT_ADDRESS_TIME => {
-                            if self.extended {
+                        DHCP_OPT_ADDRESS_TIME
+                            if self.extended => {
                                 js.set_uint("lease_time",
                                                time_value.seconds as u64)?;
                             }
-                        }
-                        DHCP_OPT_REBINDING_TIME => {
-                            if self.extended {
+                        DHCP_OPT_REBINDING_TIME
+                            if self.extended => {
                                 js.set_uint("rebinding_time",
                                                time_value.seconds as u64)?;
                             }
-                        }
                         DHCP_OPT_RENEWAL_TIME => {
                             js.set_uint("renewal_time",
                                            time_value.seconds as u64)?;
@@ -132,48 +129,41 @@ impl DHCPLogger {
                 }
                 DHCPOptionWrapper::Generic(ref option) => {
                     match code {
-                        DHCP_OPT_SUBNET_MASK => {
-                            if self.extended {
+                        DHCP_OPT_SUBNET_MASK
+                            if self.extended => {
                                 js.set_string("subnet_mask",
                                               &dns_print_addr(&option.data))?;
                             }
-                        }
-                        DHCP_OPT_HOSTNAME => {
-                            if !option.data.is_empty() {
+                        DHCP_OPT_HOSTNAME
+                            if !option.data.is_empty() => {
                                 js.set_string_from_bytes("hostname",
                                                          &option.data)?;
                             }
-                        }
                         DHCP_OPT_TYPE => {
                             self.log_opt_type(js, option)?;
                         }
-                        DHCP_OPT_REQUESTED_IP => {
-                            if self.extended {
+                        DHCP_OPT_REQUESTED_IP
+                            if self.extended => {
                                 js.set_string("requested_ip",
                                               &dns_print_addr(&option.data))?;
                             }
-                        }
-                        DHCP_OPT_PARAMETER_LIST => {
-                            if self.extended {
+                        DHCP_OPT_PARAMETER_LIST
+                            if self.extended => {
                                 self.log_opt_parameters(js, option)?;
                             }
-                        }
-                        DHCP_OPT_DNS_SERVER => {
-                            if self.extended {
+                        DHCP_OPT_DNS_SERVER
+                            if self.extended => {
                                 self.log_opt_dns_server(js, option)?;
                             }
-                        }
-                        DHCP_OPT_ROUTERS => {
-                            if self.extended {
+                        DHCP_OPT_ROUTERS
+                            if self.extended => {
                                 self.log_opt_routers(js, option)?;
                             }
-                        }
-                        DHCP_OPT_VENDOR_CLASS_ID => {
-                            if self.extended && !option.data.is_empty(){
+                        DHCP_OPT_VENDOR_CLASS_ID
+                            if self.extended && !option.data.is_empty()=> {
                                 js.set_string_from_bytes("vendor_class_identifier",
                                                          &option.data)?;
                             }
-                        }
                         _ => {}
                     }
                 }

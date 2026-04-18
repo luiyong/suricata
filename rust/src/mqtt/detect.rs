@@ -35,16 +35,14 @@ pub enum MQTTFlagState {
 #[inline]
 fn check_flag_state(flag_state: MQTTFlagState, flag_value: bool, ok: &mut bool) {
     match flag_state {
-        MQTTFlagState::MQTT_MUST_BE_SET => {
-            if !flag_value {
+        MQTTFlagState::MQTT_MUST_BE_SET
+            if !flag_value => {
                 *ok = false;
             }
-        }
-        MQTTFlagState::MQTT_CANT_BE_SET => {
-            if flag_value {
+        MQTTFlagState::MQTT_CANT_BE_SET
+            if flag_value => {
                 *ok = false;
             }
-        }
         _ => {}
     }
 }

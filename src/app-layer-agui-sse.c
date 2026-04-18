@@ -964,6 +964,9 @@ static void AguiSseResponseInspect(Flow *f, htp_tx_t *tx)
 
     AguiSseTxData *txmeta = AguiSseTxDataGetMutable(tx);
     if (txmeta == NULL) {
+        if (boundary != NULL) {
+            SCFree(boundary);
+        }
         return;
     }
 

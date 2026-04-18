@@ -82,7 +82,7 @@ static JsonRpcConfig jsonrpc_config = {
 };
 static JsonRpcServiceStats jsonrpc_service_stats[JSONRPC_SERVICE_MAX];
 
-static void JsonRpcLogFlowMessage(const Flow *f, const char *fmt, ...)
+static void ATTR_FMT_PRINTF(2, 3) JsonRpcLogFlowMessage(const Flow *f, const char *fmt, ...)
 {
     if (fmt == NULL) {
         return;

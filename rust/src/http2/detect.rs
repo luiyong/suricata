@@ -71,32 +71,28 @@ fn http2_tx_has_errorcode(
     if direction == Direction::ToServer {
         for i in 0..tx.frames_ts.len() {
             match tx.frames_ts[i].data {
-                HTTP2FrameTypeData::GOAWAY(goaway) => {
-                    if goaway.errorcode == code {
+                HTTP2FrameTypeData::GOAWAY(goaway)
+                    if goaway.errorcode == code => {
                         return 1;
                     }
-                }
-                HTTP2FrameTypeData::RSTSTREAM(rst) => {
-                    if rst.errorcode == code {
+                HTTP2FrameTypeData::RSTSTREAM(rst)
+                    if rst.errorcode == code => {
                         return 1;
                     }
-                }
                 _ => {}
             }
         }
     } else {
         for i in 0..tx.frames_tc.len() {
             match tx.frames_tc[i].data {
-                HTTP2FrameTypeData::GOAWAY(goaway) => {
-                    if goaway.errorcode == code {
+                HTTP2FrameTypeData::GOAWAY(goaway)
+                    if goaway.errorcode == code => {
                         return 1;
                     }
-                }
-                HTTP2FrameTypeData::RSTSTREAM(rst) => {
-                    if rst.errorcode == code {
+                HTTP2FrameTypeData::RSTSTREAM(rst)
+                    if rst.errorcode == code => {
                         return 1;
                     }
-                }
                 _ => {}
             }
         }

@@ -166,34 +166,30 @@ pub extern "C" fn rs_ike_state_get_sa_attribute(
         } else if tx.ike_version == 2 {
             for attr in tx.hdr.ikev2_transforms.iter() {
                 match attr {
-                    IkeV2Transform::Encryption(e) => {
-                        if sa == "alg_enc" {
+                    IkeV2Transform::Encryption(e)
+                        if sa == "alg_enc" => {
                             ret_val = e.0 as u32;
                             ret_code = 1;
                             break;
                         }
-                    }
-                    IkeV2Transform::Auth(e) => {
-                        if sa == "alg_auth" {
+                    IkeV2Transform::Auth(e)
+                        if sa == "alg_auth" => {
                             ret_val = e.0 as u32;
                             ret_code = 1;
                             break;
                         }
-                    }
-                    IkeV2Transform::PRF(ref e) => {
-                        if sa == "alg_prf" {
+                    IkeV2Transform::PRF(ref e)
+                        if sa == "alg_prf" => {
                             ret_val = e.0 as u32;
                             ret_code = 1;
                             break;
                         }
-                    }
-                    IkeV2Transform::DH(ref e) => {
-                        if sa == "alg_dh" {
+                    IkeV2Transform::DH(ref e)
+                        if sa == "alg_dh" => {
                             ret_val = e.0 as u32;
                             ret_code = 1;
                             break;
                         }
-                    }
                     _ => (),
                 }
             }
