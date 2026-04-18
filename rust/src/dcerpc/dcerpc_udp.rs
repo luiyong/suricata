@@ -128,7 +128,7 @@ impl DCERPCUDPState {
     ///
     /// Arguments:
     /// * `tx_id`:
-    ///    description: internal transaction ID to track transactions
+    ///   description: internal transaction ID to track transactions
     ///
     /// Return value:
     /// Option mutable reference to DCERPCTransaction

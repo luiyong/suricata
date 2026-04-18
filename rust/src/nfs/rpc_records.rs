@@ -216,8 +216,8 @@ pub struct RpcPacket<'a> {
 ///
 /// Arguments:
 /// * `complete`:
-///           type: bool
-///    description: do full parsing, including of `prog_data`
+///   type: bool
+///   description: do full parsing, including `prog_data`
 ///
 pub fn parse_rpc(start_i: &[u8], complete: bool) -> IResult<&[u8], RpcPacket<'_>> {
     let (i, hdr) = parse_rpc_packet_header(start_i)?;
@@ -283,8 +283,8 @@ pub fn parse_rpc(start_i: &[u8], complete: bool) -> IResult<&[u8], RpcPacket<'_>
 ///
 /// Arguments:
 /// * `complete`:
-///           type: bool
-///    description: do full parsing, including of `prog_data`
+///   type: bool
+///   description: do full parsing, including `prog_data`
 ///
 pub fn parse_rpc_reply(start_i: &[u8], complete: bool) -> IResult<&[u8], RpcReplyPacket<'_>> {
     let (i, hdr) = parse_rpc_packet_header(start_i)?;

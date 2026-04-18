@@ -33,6 +33,7 @@ noinst_HEADERS = \
 	app-layer-htp-xff.h \
 	app-layer-jsonrpc.h \
 	app-layer-jsonrpc-internal.h \
+	app-layer-agui-sse.h \
 	app-layer-http2.h \
 	app-layer-ike.h \
 	app-layer-krb5.h \

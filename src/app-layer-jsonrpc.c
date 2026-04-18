@@ -34,6 +34,7 @@
 #include "flow-storage.h"
 #include "host-storage.h"
 #include "host.h"
+#include "util-storage.h"
 #include "util-streaming-buffer.h"
 #include "util-debug.h"
 #include "util-print.h"
@@ -81,6 +82,8 @@ static JsonRpcConfig jsonrpc_config = {
     .mcp_enabled = true,
 };
 static JsonRpcServiceStats jsonrpc_service_stats[JSONRPC_SERVICE_MAX];
+
+static inline bool JsonRpcFlowStorageIdIsValid(void);
 
 static void ATTR_FMT_PRINTF(2, 3) JsonRpcLogFlowMessage(const Flow *f, const char *fmt, ...)
 {
@@ -1285,7 +1288,7 @@ static void JsonRpcInspectRpcResponse(
 
 static JsonRpcFlowState *JsonRpcFlowStateAllocIfNeeded(Flow *f)
 {
-    if (f == NULL || jsonrpc_flow_storage_id.id < 0) {
+    if (f == NULL || !JsonRpcFlowStorageIdIsValid()) {
         return NULL;
     }
 
@@ -1308,7 +1311,7 @@ static JsonRpcFlowState *JsonRpcFlowStateAllocIfNeeded(Flow *f)
 
 JsonRpcFlowState *JsonRpcFlowStateGet(Flow *f)
 {
-    if (f == NULL || jsonrpc_flow_storage_id.id < 0) {
+    if (f == NULL || !JsonRpcFlowStorageIdIsValid()) {
         return NULL;
     }
     return FlowGetStorageById(f, jsonrpc_flow_storage_id);
@@ -1350,6 +1353,14 @@ static void JsonRpcRegisterBuiltinServices(void)
     if (jsonrpc_config.mcp_enabled) {
         JsonRpcRegisterMcpService();
     }
+}
+
+static inline bool JsonRpcFlowStorageIdIsValid(void)
+{
+    if (jsonrpc_flow_storage_id.id < 0) {
+        return false;
+    }
+    return (unsigned int)jsonrpc_flow_storage_id.id < StorageGetCnt(STORAGE_FLOW);
 }
 
 void JsonRpcInit(void)
