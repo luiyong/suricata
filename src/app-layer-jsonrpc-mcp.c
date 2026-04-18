@@ -84,8 +84,7 @@ static bool JsonRpcMethodIsInitMcp(const char *method)
     return false;
 }
 
-static bool JsonRpcMcpManifestLooksValid(
-        const uint8_t *body, uint32_t len, JsonRpcTxData *txmeta)
+static bool JsonRpcMcpManifestLooksValid(const uint8_t *body, uint32_t len, JsonRpcTxData *txmeta)
 {
     (void)txmeta;
 
@@ -93,9 +92,8 @@ static bool JsonRpcMcpManifestLooksValid(
         return false;
     }
 
-    const bool has_version =
-            (JsonRpcMemmem(body, len, "\"mcp_version\"") != NULL) ||
-            (JsonRpcMemmem(body, len, "\"mcpVersion\"") != NULL);
+    const bool has_version = (JsonRpcMemmem(body, len, "\"mcp_version\"") != NULL) ||
+                             (JsonRpcMemmem(body, len, "\"mcpVersion\"") != NULL);
     const bool has_capabilities = (JsonRpcMemmem(body, len, "\"capabilities\"") != NULL);
     const bool has_tools = (JsonRpcMemmem(body, len, "\"tools\"") != NULL);
     const bool has_resources = (JsonRpcMemmem(body, len, "\"resources\"") != NULL);
@@ -137,8 +135,7 @@ bool JsonRpcTestValidateMcpManifest(const char *json)
     if (json == NULL) {
         return false;
     }
-    return JsonRpcMcpManifestLooksValid(
-            (const uint8_t *)json, (uint32_t)strlen(json), NULL);
+    return JsonRpcMcpManifestLooksValid((const uint8_t *)json, (uint32_t)strlen(json), NULL);
 }
 
 #endif /* UNITTESTS */

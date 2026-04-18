@@ -41,7 +41,7 @@
 #include <htp/htp.h>
 #include <htp/bstr.h>
 
-#define JSONRPC_MAX_SERVICES 16
+#define JSONRPC_MAX_SERVICES   16
 #define JSONRPC_HOST_CACHE_TTL 600
 
 typedef struct JsonRpcHostState_ {
@@ -192,8 +192,8 @@ static void JsonRpcRegisterFlowStorage(void)
         return;
     }
 
-    jsonrpc_flow_storage_id = FlowStorageRegister("jsonrpc_flow_state",
-            sizeof(JsonRpcFlowState), JsonRpcFlowStateAlloc, JsonRpcFlowStateFree);
+    jsonrpc_flow_storage_id = FlowStorageRegister("jsonrpc_flow_state", sizeof(JsonRpcFlowState),
+            JsonRpcFlowStateAlloc, JsonRpcFlowStateFree);
     if (jsonrpc_flow_storage_id.id < 0) {
         FatalError("jsonrpc_flow_state storage registration failed");
     }
@@ -217,8 +217,8 @@ static void JsonRpcRegisterHostStorage(void)
         return;
     }
 
-    jsonrpc_host_storage_id = HostStorageRegister("jsonrpc_host_state",
-            sizeof(JsonRpcHostState), JsonRpcHostStateAlloc, JsonRpcHostStateFree);
+    jsonrpc_host_storage_id = HostStorageRegister("jsonrpc_host_state", sizeof(JsonRpcHostState),
+            JsonRpcHostStateAlloc, JsonRpcHostStateFree);
     if (jsonrpc_host_storage_id.id < 0) {
         FatalError("jsonrpc_host_state storage registration failed");
     }
@@ -339,8 +339,7 @@ static void JsonRpcFlowConfirmService(
 
     if (state->flow_accounted) {
         if (changed && f != NULL) {
-            SCLogInfo("jsonrpc flow %" PRId64 " service updated to %s (reason=%s)",
-                    FlowGetId(f),
+            SCLogInfo("jsonrpc flow %" PRId64 " service updated to %s (reason=%s)", FlowGetId(f),
                     (service->name != NULL) ? service->name : "unknown",
                     (reason != NULL) ? reason : "unspecified");
         }
@@ -353,7 +352,8 @@ static void JsonRpcFlowConfirmService(
     const char *svc_name = (service->name != NULL) ? service->name : "unknown";
     const char *why = (reason != NULL) ? reason : "unspecified";
     if (f != NULL) {
-        SCLogInfo("jsonrpc flow %" PRId64 " classified as %s (reason=%s)", FlowGetId(f), svc_name, why);
+        SCLogInfo("jsonrpc flow %" PRId64 " classified as %s (reason=%s)", FlowGetId(f), svc_name,
+                why);
     } else {
         SCLogInfo("jsonrpc flow classified as %s (reason=%s)", svc_name, why);
     }
@@ -476,8 +476,8 @@ static JsonRpcHostState *JsonRpcHostStateLock(const Address *addr, bool create, 
         return NULL;
     }
 
-    Host *host = create ? HostGetHostFromHash((Address *)addr)
-                        : HostLookupHostFromHash((Address *)addr);
+    Host *host =
+            create ? HostGetHostFromHash((Address *)addr) : HostLookupHostFromHash((Address *)addr);
     if (host == NULL) {
         return NULL;
     }
@@ -587,8 +587,8 @@ static void JsonRpcStagePromote(
         JsonRpcStatsIncrementStage(service->id, target);
         if (f != NULL) {
             const char *svc_name = (service->name != NULL) ? service->name : "unknown";
-            SCLogInfo("jsonrpc flow %" PRId64 " advanced to stage %s (%s)",
-                    FlowGetId(f), JsonRpcStageToString(target), svc_name);
+            SCLogInfo("jsonrpc flow %" PRId64 " advanced to stage %s (%s)", FlowGetId(f),
+                    JsonRpcStageToString(target), svc_name);
         }
     }
 }
@@ -619,7 +619,8 @@ static uint8_t JsonRpcResolveStageEventId(JsonRpcStage stage, uint8_t service_id
         case JSONRPC_STAGE_RPC:
             return is_mcp ? HTTP_DECODER_EVENT_MCP_STAGE_RPC : HTTP_DECODER_EVENT_A2A_STAGE_RPC;
         case JSONRPC_STAGE_STREAM:
-            return is_mcp ? HTTP_DECODER_EVENT_MCP_STAGE_STREAM : HTTP_DECODER_EVENT_A2A_STAGE_STREAM;
+            return is_mcp ? HTTP_DECODER_EVENT_MCP_STAGE_STREAM
+                          : HTTP_DECODER_EVENT_A2A_STAGE_STREAM;
         case JSONRPC_STAGE_NONE:
         default:
             return 0;
@@ -715,8 +716,7 @@ static void JsonRpcCaptureHttpHints(htp_tx_t *tx, JsonRpcTxData *txmeta)
             JsonRpcHeaderContainsValue(headers, "Content-Type", "application/json") ||
             JsonRpcHeaderContainsValue(headers, "Content-Type", "application/json-rpc") ||
             JsonRpcHeaderContainsValue(headers, "Content-Type", "application/mcp");
-    hints->accept_event_stream =
-            JsonRpcHeaderContainsValue(headers, "Accept", "text/event-stream");
+    hints->accept_event_stream = JsonRpcHeaderContainsValue(headers, "Accept", "text/event-stream");
 }
 
 static bool JsonRpcHttpHintsSuggestMcp(const JsonRpcHttpHints *hints)
@@ -736,8 +736,7 @@ static bool JsonRpcHttpHintsSuggestMcp(const JsonRpcHttpHints *hints)
     return false;
 }
 
-static bool JsonRpcMcpHttpHintsSatisfied(
-        const JsonRpcFlowState *state, const JsonRpcTxData *txmeta)
+static bool JsonRpcMcpHttpHintsSatisfied(const JsonRpcFlowState *state, const JsonRpcTxData *txmeta)
 {
     if (state != NULL && state->service_id == JSONRPC_SERVICE_MCP &&
             state->stage >= JSONRPC_STAGE_DISCOVERY) {
@@ -767,7 +766,8 @@ static void JsonRpcMaybeDetectStreamUpgrade(
         return;
     }
 
-    const bool has_sse = JsonRpcHeaderContainsValue(tx->request_headers, "Accept", "text/event-stream");
+    const bool has_sse =
+            JsonRpcHeaderContainsValue(tx->request_headers, "Accept", "text/event-stream");
     const bool has_ws = JsonRpcHeaderContainsValue(tx->request_headers, "Upgrade", "websocket");
     if (!has_sse && !has_ws) {
         return;
@@ -789,8 +789,7 @@ static void JsonRpcMaybeDetectStreamUpgrade(
         }
         if (f != NULL) {
             const char *svc_name = (service->name != NULL) ? service->name : "unknown";
-            SCLogInfo("jsonrpc flow %" PRId64 " stream upgrade (%s via %s)",
-                    FlowGetId(f), svc_name,
+            SCLogInfo("jsonrpc flow %" PRId64 " stream upgrade (%s via %s)", FlowGetId(f), svc_name,
                     (txmeta->stream_type[0] != '\0') ? txmeta->stream_type : "unknown");
         }
     }
@@ -814,8 +813,7 @@ typedef struct JsonRpcMessage_ {
     uint32_t error_len;
 } JsonRpcMessage;
 
-const uint8_t *JsonRpcMemmem(
-        const uint8_t *haystack, size_t haystack_len, const char *needle)
+const uint8_t *JsonRpcMemmem(const uint8_t *haystack, size_t haystack_len, const char *needle)
 {
     const size_t needle_len = strlen(needle);
     if (needle_len == 0 || haystack_len < needle_len) {
@@ -823,8 +821,7 @@ const uint8_t *JsonRpcMemmem(
     }
 
     for (size_t i = 0; i <= haystack_len - needle_len; i++) {
-        if (haystack[i] == (uint8_t)needle[0] &&
-                memcmp(&haystack[i], needle, needle_len) == 0) {
+        if (haystack[i] == (uint8_t)needle[0] && memcmp(&haystack[i], needle, needle_len) == 0) {
             return &haystack[i];
         }
     }
@@ -1001,7 +998,8 @@ static const uint8_t *JsonRpcSkipJsonValue(const uint8_t *ptr, const uint8_t *en
         return JsonRpcSkipJsonContainer(ptr, end, '[', ']');
     }
 
-    while (ptr < end && !isspace((unsigned char)*ptr) && *ptr != ',' && *ptr != '}' && *ptr != ']') {
+    while (ptr < end && !isspace((unsigned char)*ptr) && *ptr != ',' && *ptr != '}' &&
+            *ptr != ']') {
         ptr++;
     }
     return ptr;
@@ -1175,8 +1173,7 @@ static void JsonRpcInspectRpcRequest(
     JsonRpcCaptureHttpHints(tx, txmeta);
     JsonRpcApplyScheme(tx, active_service);
 
-    if (active_service->id == JSONRPC_SERVICE_MCP &&
-            !JsonRpcMcpHttpHintsSatisfied(state, txmeta)) {
+    if (active_service->id == JSONRPC_SERVICE_MCP && !JsonRpcMcpHttpHintsSatisfied(state, txmeta)) {
         return;
     }
 
@@ -1187,7 +1184,7 @@ static void JsonRpcInspectRpcRequest(
         is_init = true;
     }
     const bool is_stream = (active_service->method_is_stream != NULL &&
-            active_service->method_is_stream(msg.method));
+                            active_service->method_is_stream(msg.method));
 
     JsonRpcStage target_stage;
     if (is_stream) {
@@ -1203,13 +1200,9 @@ static void JsonRpcInspectRpcRequest(
     }
     JsonRpcStagePromote(f, state, active_service, target_stage);
     JsonRpcEmitStageEvent(tx, target_stage, active_service->id);
-    JsonRpcLogFlowMessage(f,
-            "rpc request stage=%s method=%s id=%s size=%u params=%u"
-            , JsonRpcStageToString(target_stage)
-            , txmeta->rpc_method
-            , txmeta->rpc_id
-            , txmeta->rpc_size
-            , txmeta->rpc_params_len);
+    JsonRpcLogFlowMessage(f, "rpc request stage=%s method=%s id=%s size=%u params=%u",
+            JsonRpcStageToString(target_stage), txmeta->rpc_method, txmeta->rpc_id,
+            txmeta->rpc_size, txmeta->rpc_params_len);
 
     txmeta->service_id = active_service->id;
     txmeta->rpc_request = true;
@@ -1278,10 +1271,8 @@ static void JsonRpcInspectRpcResponse(
     txmeta->rpc_response_error = msg.has_error;
     txmeta->rpc_result_size = body_len;
     txmeta->rpc_stage = MAX(txmeta->rpc_stage, state->stage);
-    JsonRpcLogFlowMessage(f,
-            "rpc response stage=%s size=%u error=%s",
-            JsonRpcStageToString(txmeta->rpc_stage),
-            txmeta->rpc_result_size,
+    JsonRpcLogFlowMessage(f, "rpc response stage=%s size=%u error=%s",
+            JsonRpcStageToString(txmeta->rpc_stage), txmeta->rpc_result_size,
             msg.has_error ? "yes" : "no");
 
     txmeta->rpc_id_match = false;
@@ -1330,13 +1321,13 @@ void JsonRpcServiceRegister(const JsonRpcServiceDef *def)
         return;
     }
     if (def->method_match == NULL) {
-        SCLogWarning("jsonrpc service '%s' missing method matcher", def->name ? def->name : "unknown");
+        SCLogWarning(
+                "jsonrpc service '%s' missing method matcher", def->name ? def->name : "unknown");
         return;
     }
 
     for (size_t i = 0; i < jsonrpc_service_cnt; i++) {
-        if (jsonrpc_services[i].def != NULL &&
-                jsonrpc_services[i].def->id == def->id) {
+        if (jsonrpc_services[i].def != NULL && jsonrpc_services[i].def->id == def->id) {
             SCLogWarning("JSON-RPC service id %u already registered", def->id);
             return;
         }
@@ -1384,8 +1375,8 @@ void JsonRpcInit(void)
     jsonrpc_initialized = true;
 }
 
-static void JsonRpcHandleDiscovery(Flow *f, JsonRpcFlowState *state,
-        const JsonRpcServiceDef *service, htp_tx_t *tx)
+static void JsonRpcHandleDiscovery(
+        Flow *f, JsonRpcFlowState *state, const JsonRpcServiceDef *service, htp_tx_t *tx)
 {
     if (state == NULL || service == NULL) {
         return;
@@ -1444,11 +1435,12 @@ void JsonRpcOnHttpResponseComplete(Flow *f, htp_tx_t *tx)
             uint32_t body_len = 0;
             uint64_t body_offset = 0;
             if (StreamingBufferGetData(body->sb, &body_data, &body_len, &body_offset) != 0 &&
-                    body_len > 0 && JsonRpcValidateAgentCard(service, body_data, body_len, txmeta)) {
+                    body_len > 0 &&
+                    JsonRpcValidateAgentCard(service, body_data, body_len, txmeta)) {
                 uint8_t digest[SC_SHA256_LEN];
                 if (SCSha256HashBuffer(body_data, body_len, digest, sizeof(digest))) {
-                    PrintHexString(
-                            txmeta->card_hash_hex, sizeof(txmeta->card_hash_hex), digest, sizeof(digest));
+                    PrintHexString(txmeta->card_hash_hex, sizeof(txmeta->card_hash_hex), digest,
+                            sizeof(digest));
                     txmeta->card_size = body_len;
                     txmeta->agent_card_ready = true;
                     txmeta->agent_card_valid = true;
@@ -1494,10 +1486,10 @@ void JsonRpcOnHttpRequestComplete(Flow *f, htp_tx_t *tx)
             char path_buf[128];
             JsonRpcLogFlowMessage(f, "discovery request path=%s",
                     JsonRpcBstrToC(tx->parsed_uri->path, path_buf, sizeof(path_buf)));
-        JsonRpcHandleDiscovery(f, state, matched, tx);
-        service = matched;
-        JsonRpcLogFlowMessage(f, "request classified via discovery path=%s", matched->name);
-    }
+            JsonRpcHandleDiscovery(f, state, matched, tx);
+            service = matched;
+            JsonRpcLogFlowMessage(f, "request classified via discovery path=%s", matched->name);
+        }
     }
 
     if (service == NULL && state->service_id != JSONRPC_SERVICE_UNKNOWN) {
@@ -1506,8 +1498,7 @@ void JsonRpcOnHttpRequestComplete(Flow *f, htp_tx_t *tx)
             JsonRpcLogFlowMessage(f, "request using cached service %s", service->name);
         }
     }
-    if (service == NULL && is_post && txmeta != NULL &&
-            JsonRpcHttpHintsSuggestMcp(&txmeta->http)) {
+    if (service == NULL && is_post && txmeta != NULL && JsonRpcHttpHintsSuggestMcp(&txmeta->http)) {
         service = JsonRpcServiceFindById(JSONRPC_SERVICE_MCP);
         if (service != NULL) {
             state->service_id = service->id;
@@ -1625,8 +1616,7 @@ bool JsonRpcTestParseMessage(const char *json, JsonRpcTestMessage *msg)
     }
 
     JsonRpcMessage internal;
-    const bool ok =
-            JsonRpcParseMessage((const uint8_t *)json, strlen(json), &internal);
+    const bool ok = JsonRpcParseMessage((const uint8_t *)json, strlen(json), &internal);
     if (ok && msg != NULL) {
         msg->has_jsonrpc = internal.has_jsonrpc;
         msg->has_method = internal.has_method;

@@ -311,8 +311,8 @@ static void EveHttpLogJSONExtended(JsonBuilder *js, htp_tx_t *tx)
 static void EveHttpLogJSONHeaders(
         JsonBuilder *js, uint32_t direction, htp_tx_t *tx, LogHttpFileCtx *http_ctx)
 {
-    htp_table_t *headers = (direction & LOG_HTTP_REQ_HEADERS) ?
-            tx->request_headers : tx->response_headers;
+    htp_table_t *headers =
+            (direction & LOG_HTTP_REQ_HEADERS) ? tx->request_headers : tx->response_headers;
     const bool is_request = (direction & LOG_HTTP_REQ_HEADERS) != 0;
     char name[MAX_SIZE_HEADER_NAME] = {0};
     char value[MAX_SIZE_HEADER_VALUE] = {0};

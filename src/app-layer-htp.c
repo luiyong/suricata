@@ -7181,7 +7181,7 @@ static void HTPParserRegisterTests(void)
     HTPFileParserRegisterTests();
     HTPXFFParserRegisterTests();
     AppLayerJsonRpcRegisterTests();
-AppLayerAguiSseRegisterTests();
+    AppLayerAguiSseRegisterTests();
 }
 #endif /* UNITTESTS */
 

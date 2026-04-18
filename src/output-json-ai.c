@@ -88,9 +88,8 @@ static const char *JsonRpcDetermineScheme(htp_tx_t *tx, const JsonRpcServiceDef 
     return JsonRpcResolveScheme(service);
 }
 
-static bool JsonRpcEmitCardEvent(
-        ThreadVars *tv, OutputJsonThreadCtx *thread, const Packet *p, Flow *f, htp_tx_t *tx,
-        const JsonRpcTxData *txmeta)
+static bool JsonRpcEmitCardEvent(ThreadVars *tv, OutputJsonThreadCtx *thread, const Packet *p,
+        Flow *f, htp_tx_t *tx, const JsonRpcTxData *txmeta)
 {
     (void)tv;
     (void)f;
@@ -127,9 +126,8 @@ static bool JsonRpcEmitCardEvent(
     return true;
 }
 
-static bool JsonRpcEmitRpcEvent(
-        ThreadVars *tv, OutputJsonThreadCtx *thread, const Packet *p, Flow *f, htp_tx_t *tx,
-        const JsonRpcTxData *txmeta)
+static bool JsonRpcEmitRpcEvent(ThreadVars *tv, OutputJsonThreadCtx *thread, const Packet *p,
+        Flow *f, htp_tx_t *tx, const JsonRpcTxData *txmeta)
 {
     (void)tv;
     (void)f;
@@ -174,9 +172,8 @@ static bool JsonRpcEmitRpcEvent(
     return true;
 }
 
-static bool JsonRpcEmitRpcResultEvent(
-        ThreadVars *tv, OutputJsonThreadCtx *thread, const Packet *p, Flow *f, htp_tx_t *tx,
-        const JsonRpcTxData *txmeta)
+static bool JsonRpcEmitRpcResultEvent(ThreadVars *tv, OutputJsonThreadCtx *thread, const Packet *p,
+        Flow *f, htp_tx_t *tx, const JsonRpcTxData *txmeta)
 {
     (void)tv;
     (void)f;
@@ -220,9 +217,8 @@ static bool JsonRpcEmitRpcResultEvent(
     return true;
 }
 
-static bool JsonRpcEmitStreamEvent(
-        ThreadVars *tv, OutputJsonThreadCtx *thread, const Packet *p, Flow *f, htp_tx_t *tx,
-        const JsonRpcTxData *txmeta)
+static bool JsonRpcEmitStreamEvent(ThreadVars *tv, OutputJsonThreadCtx *thread, const Packet *p,
+        Flow *f, htp_tx_t *tx, const JsonRpcTxData *txmeta)
 {
     (void)tv;
     (void)f;
@@ -303,8 +299,8 @@ static bool AguiSseEmitEvent(
     return true;
 }
 
-static int JsonRpcLogger(ThreadVars *tv, void *thread_data, const Packet *p, Flow *f,
-        void *state, void *txptr, uint64_t tx_id)
+static int JsonRpcLogger(ThreadVars *tv, void *thread_data, const Packet *p, Flow *f, void *state,
+        void *txptr, uint64_t tx_id)
 {
     (void)state;
     (void)tx_id;

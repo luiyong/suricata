@@ -20,11 +20,9 @@
 
 #include "app-layer-jsonrpc.h"
 
-const uint8_t *JsonRpcMemmem(
-        const uint8_t *haystack, size_t haystack_len, const char *needle);
+const uint8_t *JsonRpcMemmem(const uint8_t *haystack, size_t haystack_len, const char *needle);
 
-bool JsonRpcDefaultAgentCardValidator(
-        const uint8_t *body, uint32_t len, JsonRpcTxData *txmeta);
+bool JsonRpcDefaultAgentCardValidator(const uint8_t *body, uint32_t len, JsonRpcTxData *txmeta);
 
 void JsonRpcRegisterA2AService(void);
 void JsonRpcRegisterMcpService(void);

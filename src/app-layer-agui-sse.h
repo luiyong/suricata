@@ -53,8 +53,8 @@ void AppLayerAguiSseRegisterTests(void);
 bool AguiSseTestParseSample(
         const char *payload, uint32_t *out_count, char *last_type, size_t last_type_len);
 bool AguiSseTestBodyLooksLikeRunAgentInput(const char *body);
-bool AguiSseTestParseMultipartSample(
-        const char *boundary, const char *body, uint32_t *out_count, char *last_type, size_t last_type_len);
+bool AguiSseTestParseMultipartSample(const char *boundary, const char *body, uint32_t *out_count,
+        char *last_type, size_t last_type_len);
 #endif
 
 #endif /* __APP_LAYER_AGUI_SSE_H__ */

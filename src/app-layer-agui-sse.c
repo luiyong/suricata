@@ -42,7 +42,13 @@
 #define AGUI_SSE_MULTIPART_BOUNDARY_MAX_DEFAULT 64U
 
 static const char *const agui_valid_roles[] = {
-    "developer", "system", "assistant", "user", "tool", "activity", NULL,
+    "developer",
+    "system",
+    "assistant",
+    "user",
+    "tool",
+    "activity",
+    NULL,
 };
 
 static bool agui_sse_initialized = false;
@@ -105,8 +111,8 @@ static void AguiSseRegisterFlowStorage(void)
         return;
     }
 
-    agui_sse_flow_storage_id = FlowStorageRegister("agui_sse_flow_state",
-            sizeof(AguiSseFlowState), AguiSseFlowStateAlloc, AguiSseFlowStateFree);
+    agui_sse_flow_storage_id = FlowStorageRegister("agui_sse_flow_state", sizeof(AguiSseFlowState),
+            AguiSseFlowStateAlloc, AguiSseFlowStateFree);
     if (agui_sse_flow_storage_id.id < 0) {
         FatalError("agui_sse_flow_state storage registration failed");
     }
@@ -514,8 +520,8 @@ static bool AguiSseBodyLooksLikeRunAgentInput(const uint8_t *body, uint32_t len)
         json_t *thread_id = json_object_get(payload, "threadId");
         json_t *run_id = json_object_get(payload, "runId");
         json_t *messages = json_object_get(payload, "messages");
-        const bool run_id_ok = (json_is_string(run_id) && json_string_length(run_id) > 0) ||
-                json_is_null(run_id);
+        const bool run_id_ok =
+                (json_is_string(run_id) && json_string_length(run_id) > 0) || json_is_null(run_id);
         if (json_is_string(thread_id) && json_string_length(thread_id) > 0 && run_id_ok &&
                 AguiSseMessagesLookValid(messages)) {
             looks_valid = true;
@@ -560,9 +566,10 @@ static void AguiSseRequestInspect(Flow *f, htp_tx_t *tx)
     if (!AguiSseIsEnabled() || tx == NULL || tx->request_headers == NULL) {
         return;
     }
-    const bool accept_sse = AguiSseHeaderContainsValue(tx->request_headers, "Accept", "text/event-stream");
-    const bool accept_proto =
-            AguiSseHeaderContainsValue(tx->request_headers, "Accept", "application/vnd.ag-ui.event+proto");
+    const bool accept_sse =
+            AguiSseHeaderContainsValue(tx->request_headers, "Accept", "text/event-stream");
+    const bool accept_proto = AguiSseHeaderContainsValue(
+            tx->request_headers, "Accept", "application/vnd.ag-ui.event+proto");
     if (!accept_sse && !accept_proto) {
         return;
     }
@@ -571,9 +578,10 @@ static void AguiSseRequestInspect(Flow *f, htp_tx_t *tx)
     if (txmeta != NULL) {
         txmeta->request_wants_sse = accept_sse;
         txmeta->request_accepts_proto = accept_proto;
-        txmeta->request_content_type_json = AguiSseHeaderContainsValue(
-                                                    tx->request_headers, "Content-Type", "application/json") ||
-                AguiSseHeaderContainsValue(tx->request_headers, "Content-Type", "application/vnd.ag-ui+json");
+        txmeta->request_content_type_json = AguiSseHeaderContainsValue(tx->request_headers,
+                                                    "Content-Type", "application/json") ||
+                                            AguiSseHeaderContainsValue(tx->request_headers,
+                                                    "Content-Type", "application/vnd.ag-ui+json");
         if (f != NULL) {
             SCLogInfo("agui flow %" PRId64 " request hints sse=%s proto=%s content-json=%s",
                     FlowGetId(f), accept_sse ? "yes" : "no", accept_proto ? "yes" : "no",
@@ -805,7 +813,8 @@ static const uint8_t *AguiSseFindBoundary(
         return NULL;
     }
     while (cursor + 2 + boundary_len <= end) {
-        if (cursor[0] == '-' && cursor[1] == '-' && memcmp(cursor + 2, boundary, boundary_len) == 0) {
+        if (cursor[0] == '-' && cursor[1] == '-' &&
+                memcmp(cursor + 2, boundary, boundary_len) == 0) {
             return cursor;
         }
         cursor++;
@@ -913,15 +922,15 @@ static void AguiSseResponseInspect(Flow *f, htp_tx_t *tx)
         return;
     }
 
-    const bool header_proto =
-            AguiSseHeaderContainsValue(headers, "Content-Type", "application/vnd.ag-ui.event+proto");
+    const bool header_proto = AguiSseHeaderContainsValue(
+            headers, "Content-Type", "application/vnd.ag-ui.event+proto");
     const bool header_sse =
             AguiSseHeaderContainsValue(headers, "Content-Type", "text/event-stream");
     const bool header_json =
             AguiSseHeaderContainsValue(headers, "Content-Type", "application/vnd.ag-ui.event+json");
     const bool header_generic =
-            (!header_proto &&
-                    AguiSseHeaderContainsValue(headers, "Content-Type", "application/vnd.ag-ui.event"));
+            (!header_proto && AguiSseHeaderContainsValue(
+                                      headers, "Content-Type", "application/vnd.ag-ui.event"));
 
     const bool treat_proto = header_proto && agui_sse_options.standard_mode;
     char *boundary = NULL;
@@ -944,7 +953,7 @@ static void AguiSseResponseInspect(Flow *f, htp_tx_t *tx)
         }
     }
     const bool treat_sse = (!treat_proto) && (!treat_multipart) && agui_sse_options.standard_mode &&
-            (header_sse || header_json || header_generic);
+                           (header_sse || header_json || header_generic);
 
     if (!treat_proto && !treat_sse && !treat_multipart) {
         if (boundary != NULL) {
@@ -991,7 +1000,8 @@ static void AguiSseResponseInspect(Flow *f, htp_tx_t *tx)
         const uint8_t *body_data = NULL;
         uint32_t body_len = 0;
         uint64_t body_offset = 0;
-        if (StreamingBufferGetData(htud->response_body.sb, &body_data, &body_len, &body_offset) == 0 ||
+        if (StreamingBufferGetData(htud->response_body.sb, &body_data, &body_len, &body_offset) ==
+                        0 ||
                 body_len == 0) {
             if (boundary != NULL) {
                 SCFree(boundary);
@@ -1003,8 +1013,8 @@ static void AguiSseResponseInspect(Flow *f, htp_tx_t *tx)
         SCFree(boundary);
         boundary = NULL;
         if (f != NULL && txmeta->event_count > 0) {
-            SCLogInfo("agui flow %" PRId64 " parsed %u SSE events (last=%s)",
-                    FlowGetId(f), txmeta->event_count,
+            SCLogInfo("agui flow %" PRId64 " parsed %u SSE events (last=%s)", FlowGetId(f),
+                    txmeta->event_count,
                     (txmeta->last_event_type[0] != '\0') ? txmeta->last_event_type : "unknown");
         }
         AguiSseMaybeConfirm(txmeta);
@@ -1039,8 +1049,8 @@ static void AguiSseResponseInspect(Flow *f, htp_tx_t *tx)
 
     AguiSseProcessBuffer(body_data, body_len, txmeta);
     if (f != NULL && txmeta->event_count > 0) {
-        SCLogInfo("agui flow %" PRId64 " parsed %u SSE events (last=%s)",
-                FlowGetId(f), txmeta->event_count,
+        SCLogInfo("agui flow %" PRId64 " parsed %u SSE events (last=%s)", FlowGetId(f),
+                txmeta->event_count,
                 (txmeta->last_event_type[0] != '\0') ? txmeta->last_event_type : "unknown");
     }
     AguiSseMaybeConfirm(txmeta);
@@ -1104,8 +1114,8 @@ bool AguiSseTestBodyLooksLikeRunAgentInput(const char *body)
     return AguiSseBodyLooksLikeRunAgentInput((const uint8_t *)body, (uint32_t)strlen(body));
 }
 
-bool AguiSseTestParseMultipartSample(
-        const char *boundary, const char *body, uint32_t *out_count, char *last_type, size_t last_type_len)
+bool AguiSseTestParseMultipartSample(const char *boundary, const char *body, uint32_t *out_count,
+        char *last_type, size_t last_type_len)
 {
     if (boundary == NULL || body == NULL) {
         return false;

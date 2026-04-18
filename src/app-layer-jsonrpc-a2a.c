@@ -72,8 +72,7 @@ static bool JsonRpcMethodIsStreamA2A(const char *method)
     return (def != NULL && def->is_stream);
 }
 
-bool JsonRpcDefaultAgentCardValidator(
-        const uint8_t *body, uint32_t len, JsonRpcTxData *txmeta)
+bool JsonRpcDefaultAgentCardValidator(const uint8_t *body, uint32_t len, JsonRpcTxData *txmeta)
 {
     (void)txmeta;
 
@@ -151,8 +150,7 @@ bool JsonRpcTestValidateAgentCard(const char *json)
     if (json == NULL) {
         return false;
     }
-    return JsonRpcDefaultAgentCardValidator(
-            (const uint8_t *)json, (uint32_t)strlen(json), NULL);
+    return JsonRpcDefaultAgentCardValidator((const uint8_t *)json, (uint32_t)strlen(json), NULL);
 }
 
 #endif /* UNITTESTS */

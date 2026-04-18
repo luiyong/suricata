@@ -37,15 +37,14 @@ static int AguiSseParseSampleTest(void)
 
 static int AguiSseRunAgentInputPositiveTest(void)
 {
-    static const char body[] =
-            "{"
-            "\"threadId\":\"thread-123\","
-            "\"runId\":\"run-456\","
-            "\"messages\":["
-            "  {\"id\":\"m1\",\"role\":\"user\",\"content\":\"hello\"},"
-            "  {\"id\":\"m2\",\"role\":\"assistant\",\"content\":\"hi\"}"
-            "]"
-            "}";
+    static const char body[] = "{"
+                               "\"threadId\":\"thread-123\","
+                               "\"runId\":\"run-456\","
+                               "\"messages\":["
+                               "  {\"id\":\"m1\",\"role\":\"user\",\"content\":\"hello\"},"
+                               "  {\"id\":\"m2\",\"role\":\"assistant\",\"content\":\"hi\"}"
+                               "]"
+                               "}";
 
     FAIL_IF(!AguiSseTestBodyLooksLikeRunAgentInput(body));
     PASS;
