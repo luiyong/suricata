@@ -560,7 +560,7 @@ static void JsonRpcHostStateUpdate(Flow *f, const JsonRpcServiceDef *service, Js
     }
 
     if (host_state->stage < stage || host_state->service_id != service->id) {
-        host_state->stage = stage;
+        host_state->stage = (uint8_t)stage;
         host_state->service_id = service->id;
     }
     host_state->last_seen = SCTIME_SECS(f->lastts);
@@ -577,7 +577,7 @@ static void JsonRpcStagePromote(
 
     bool advanced = false;
     if (state->stage < target) {
-        state->stage = target;
+        state->stage = (uint8_t)target;
         advanced = true;
     }
 
@@ -1426,12 +1426,23 @@ void JsonRpcOnHttpResponseComplete(Flow *f, htp_tx_t *tx)
 
     JsonRpcTxData *txmeta = htud->jsonrpc_tx;
 
-    JsonRpcFlowState *state = JsonRpcFlowStateGet(f);
+    const bool tx_has_jsonrpc_signal = txmeta->agent_card_request || txmeta->rpc_request ||
+                                       txmeta->stream_upgrade ||
+                                       txmeta->service_id != JSONRPC_SERVICE_UNKNOWN;
+    if (!tx_has_jsonrpc_signal) {
+        return;
+    }
+
+    JsonRpcFlowState *state = NULL;
     uint8_t service_id = JSONRPC_SERVICE_UNKNOWN;
-    if (state != NULL && state->service_id != JSONRPC_SERVICE_UNKNOWN) {
-        service_id = state->service_id;
-    } else if (txmeta->service_id != JSONRPC_SERVICE_UNKNOWN) {
+    if (txmeta->service_id != JSONRPC_SERVICE_UNKNOWN) {
         service_id = txmeta->service_id;
+    } else {
+        state = JsonRpcFlowStateGet(f);
+    }
+    if (service_id == JSONRPC_SERVICE_UNKNOWN && state != NULL &&
+            state->service_id != JSONRPC_SERVICE_UNKNOWN) {
+        service_id = state->service_id;
     }
 
     const JsonRpcServiceDef *service = JsonRpcServiceLookup(service_id);
