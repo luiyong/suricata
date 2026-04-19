@@ -30,6 +30,7 @@
 
 #include "flow-private.h"
 #include "flow-util.h"
+#include "flow-storage.h"
 #include "flow-spare-pool.h"
 
 #include "detect.h"
@@ -53,13 +54,14 @@ Flow *TestHelperBuildFlow(int family, const char *src, const char *dst, Port sp,
 {
     struct in_addr in;
 
-    Flow *f = SCMalloc(sizeof(Flow));
+    const size_t flow_size = sizeof(Flow) + FlowStorageSize();
+    Flow *f = SCMalloc(flow_size);
     if (unlikely(f == NULL)) {
         printf("FlowAlloc failed\n");
         ;
         return NULL;
     }
-    memset(f, 0x00, sizeof(Flow));
+    memset(f, 0x00, flow_size);
 
     FLOW_INITIALIZE(f);
 
@@ -1173,4 +1175,3 @@ void UTHRegisterTests(void)
 
 #endif /* UNITTESTS */
 }
-
