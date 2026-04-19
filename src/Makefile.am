@@ -1267,6 +1267,7 @@ EXTRA_DIST = \
 	tests/source-pcap.c \
 	tests/app-layer-htp-file.c \
 	tests/app-layer-jsonrpc.c \
+	tests/app-layer-agui-sse.c \
 	tests/detect-engine-alert.c \
 	tests/detect-engine-content-inspection.c \
 	tests/detect-icmpv4hdr.c \

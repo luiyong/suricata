@@ -1479,28 +1479,37 @@ void JsonRpcOnHttpRequestComplete(Flow *f, htp_tx_t *tx)
         return;
     }
 
-    JsonRpcFlowState *state = JsonRpcFlowStateAllocIfNeeded(f);
-    if (state == NULL) {
-        return;
-    }
-
     JsonRpcTxData *txmeta = JsonRpcTxDataGetMutable(tx);
     if (txmeta != NULL) {
         JsonRpcCaptureHttpHints(tx, txmeta);
     }
 
     const JsonRpcServiceDef *service = NULL;
+    const bstr *discovery_path = NULL;
 
     if (is_get && tx->parsed_uri != NULL && tx->parsed_uri->path != NULL) {
         const JsonRpcServiceDef *matched = JsonRpcMatchDiscoveryByPath(tx->parsed_uri->path);
         if (matched != NULL) {
-            char path_buf[128];
-            JsonRpcLogFlowMessage(f, "discovery request path=%s",
-                    JsonRpcBstrToC(tx->parsed_uri->path, path_buf, sizeof(path_buf)));
-            JsonRpcHandleDiscovery(f, state, matched, tx);
+            discovery_path = tx->parsed_uri->path;
             service = matched;
-            JsonRpcLogFlowMessage(f, "request classified via discovery path=%s", matched->name);
         }
+    }
+
+    if (!is_post && service == NULL) {
+        return;
+    }
+
+    JsonRpcFlowState *state = JsonRpcFlowStateAllocIfNeeded(f);
+    if (state == NULL) {
+        return;
+    }
+
+    if (service != NULL && discovery_path != NULL) {
+        char path_buf[128];
+        JsonRpcLogFlowMessage(f, "discovery request path=%s",
+                JsonRpcBstrToC(discovery_path, path_buf, sizeof(path_buf)));
+        JsonRpcHandleDiscovery(f, state, service, tx);
+        JsonRpcLogFlowMessage(f, "request classified via discovery path=%s", service->name);
     }
 
     if (service == NULL && state->service_id != JSONRPC_SERVICE_UNKNOWN) {
