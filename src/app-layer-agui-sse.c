@@ -1099,6 +1099,7 @@ bool AguiSseTestParseSample(
     }
     AguiSseTxData txmeta = { 0 };
     txmeta.request_has_run_input = true;
+    txmeta.response_is_sse = true;
     AguiSseProcessBuffer((const uint8_t *)payload, (uint32_t)strlen(payload), &txmeta);
     if (out_count != NULL) {
         *out_count = txmeta.event_count;
