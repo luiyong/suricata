@@ -478,6 +478,9 @@ static JsonRpcHostState *JsonRpcHostStateLock(const Address *addr, bool create, 
     if (jsonrpc_host_storage_id.id < 0 || addr == NULL || locked_host == NULL) {
         return NULL;
     }
+    if (host_config.hash_size == 0) {
+        return NULL;
+    }
 
     Host *host =
             create ? HostGetHostFromHash((Address *)addr) : HostLookupHostFromHash((Address *)addr);
