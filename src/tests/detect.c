@@ -4410,6 +4410,7 @@ static int SigTestDropFlow01(void)
     Signature *s = NULL;
     ThreadVars tv;
     DetectEngineThreadCtx *det_ctx = NULL;
+    DetectEngineCtx *de_ctx = NULL;
     AppLayerParserThreadCtx *alp_tctx = AppLayerParserThreadCtxAlloc();
 
     memset(&tv, 0, sizeof(ThreadVars));
@@ -4431,7 +4432,7 @@ static int SigTestDropFlow01(void)
 
     StreamTcpInitConfig(true);
 
-    DetectEngineCtx *de_ctx = DetectEngineCtxInit();
+    de_ctx = DetectEngineCtxInit();
     FAIL_IF_NULL(de_ctx);
     de_ctx->flags |= DE_QUIET;
 
@@ -4485,6 +4486,7 @@ static int SigTestDropFlow02(void)
     Signature *s = NULL;
     ThreadVars tv;
     DetectEngineThreadCtx *det_ctx = NULL;
+    DetectEngineCtx *de_ctx = NULL;
     AppLayerParserThreadCtx *alp_tctx = AppLayerParserThreadCtxAlloc();
 
     memset(&tv, 0, sizeof(ThreadVars));
@@ -4510,7 +4512,7 @@ static int SigTestDropFlow02(void)
 
     StreamTcpInitConfig(true);
 
-    DetectEngineCtx *de_ctx = DetectEngineCtxInit();
+    de_ctx = DetectEngineCtxInit();
     if (de_ctx == NULL) {
         goto end;
     }
@@ -4604,6 +4606,7 @@ static int SigTestDropFlow03(void)
     Signature *s = NULL;
     ThreadVars tv;
     DetectEngineThreadCtx *det_ctx = NULL;
+    DetectEngineCtx *de_ctx = NULL;
     AppLayerParserThreadCtx *alp_tctx = AppLayerParserThreadCtxAlloc();
 
     memset(&tv, 0, sizeof(ThreadVars));
@@ -4635,7 +4638,7 @@ static int SigTestDropFlow03(void)
 
     StreamTcpInitConfig(true);
 
-    DetectEngineCtx *de_ctx = DetectEngineCtxInit();
+    de_ctx = DetectEngineCtxInit();
     if (de_ctx == NULL) {
         goto end;
     }
