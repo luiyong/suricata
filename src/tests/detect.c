@@ -4399,7 +4399,7 @@ static int SigTestDetectAlertCounter(void)
  *        triggered a drop action on IPS mode */
 static int SigTestDropFlow01(void)
 {
-    Flow f;
+    Flow *f = NULL;
     HtpState *http_state = NULL;
     uint8_t http_buf1[] = "POST /one HTTP/1.0\r\n"
         "User-Agent: Mozilla/1.0\r\n"
@@ -4413,21 +4413,21 @@ static int SigTestDropFlow01(void)
     AppLayerParserThreadCtx *alp_tctx = AppLayerParserThreadCtxAlloc();
 
     memset(&tv, 0, sizeof(ThreadVars));
-    memset(&f, 0, sizeof(Flow));
     memset(&ssn, 0, sizeof(TcpSession));
 
     p = UTHBuildPacket(NULL, 0, IPPROTO_TCP);
+    FAIL_IF_NULL(p);
+    f = UTHBuildFlow(AF_INET, "1.2.3.4", "5.6.7.8", 1024, 80);
+    FAIL_IF_NULL(f);
 
-    FLOW_INITIALIZE(&f);
-    f.protoctx = (void *)&ssn;
-    f.proto = IPPROTO_TCP;
-    f.flags |= FLOW_IPV4;
+    f->protoctx = (void *)&ssn;
+    f->proto = IPPROTO_TCP;
 
-    p->flow = &f;
+    p->flow = f;
     p->flowflags |= FLOW_PKT_TOSERVER;
     p->flowflags |= FLOW_PKT_ESTABLISHED;
     p->flags |= PKT_HAS_FLOW|PKT_STREAM_EST;
-    f.alproto = ALPROTO_HTTP1;
+    f->alproto = ALPROTO_HTTP1;
 
     StreamTcpInitConfig(true);
 
@@ -4444,10 +4444,10 @@ static int SigTestDropFlow01(void)
     DetectEngineThreadCtxInit(&tv, (void *)de_ctx, (void *)&det_ctx);
 
     int r = AppLayerParserParse(
-            NULL, alp_tctx, &f, ALPROTO_HTTP1, STREAM_TOSERVER, http_buf1, http_buf1_len);
+            NULL, alp_tctx, f, ALPROTO_HTTP1, STREAM_TOSERVER, http_buf1, http_buf1_len);
     FAIL_IF_NOT(r == 0);
 
-    http_state = f.alstate;
+    http_state = f->alstate;
     FAIL_IF_NULL(http_state);
 
     /* do detect */
@@ -4462,7 +4462,8 @@ static int SigTestDropFlow01(void)
     DetectEngineCtxFree(de_ctx);
 
     StreamTcpFreeConfig(true);
-    FLOW_DESTROY(&f);
+    FLOW_DESTROY(f);
+    UTHFreeFlow(f);
 
     UTHFreePackets(&p, 1);
     PASS;
@@ -4473,7 +4474,7 @@ static int SigTestDropFlow01(void)
 static int SigTestDropFlow02(void)
 {
     int result = 0;
-    Flow f;
+    Flow *f = NULL;
     HtpState *http_state = NULL;
     uint8_t http_buf1[] = "POST /one HTTP/1.0\r\n"
         "User-Agent: Mozilla/1.0\r\n"
@@ -4487,21 +4488,25 @@ static int SigTestDropFlow02(void)
     AppLayerParserThreadCtx *alp_tctx = AppLayerParserThreadCtxAlloc();
 
     memset(&tv, 0, sizeof(ThreadVars));
-    memset(&f, 0, sizeof(Flow));
     memset(&ssn, 0, sizeof(TcpSession));
 
     p = UTHBuildPacket(NULL, 0, IPPROTO_TCP);
+    if (p == NULL) {
+        goto end;
+    }
+    f = UTHBuildFlow(AF_INET, "1.2.3.4", "5.6.7.8", 1024, 80);
+    if (f == NULL) {
+        goto end;
+    }
 
-    FLOW_INITIALIZE(&f);
-    f.protoctx = (void *)&ssn;
-    f.proto = IPPROTO_TCP;
-    f.flags |= FLOW_IPV4;
+    f->protoctx = (void *)&ssn;
+    f->proto = IPPROTO_TCP;
 
-    p->flow = &f;
+    p->flow = f;
     p->flowflags |= FLOW_PKT_TOSERVER;
     p->flowflags |= FLOW_PKT_ESTABLISHED;
     p->flags |= PKT_HAS_FLOW|PKT_STREAM_EST;
-    f.alproto = ALPROTO_HTTP1;
+    f->alproto = ALPROTO_HTTP1;
 
     StreamTcpInitConfig(true);
 
@@ -4522,13 +4527,13 @@ static int SigTestDropFlow02(void)
     DetectEngineThreadCtxInit(&tv, (void *)de_ctx, (void *)&det_ctx);
 
     int r = AppLayerParserParse(
-            NULL, alp_tctx, &f, ALPROTO_HTTP1, STREAM_TOSERVER, http_buf1, http_buf1_len);
+            NULL, alp_tctx, f, ALPROTO_HTTP1, STREAM_TOSERVER, http_buf1, http_buf1_len);
     if (r != 0) {
         printf("toserver chunk 1 returned %" PRId32 ", expected 0: ", r);
         goto end;
     }
 
-    http_state = f.alstate;
+    http_state = f->alstate;
     if (http_state == NULL) {
         printf("no http state: ");
         goto end;
@@ -4563,7 +4568,10 @@ end:
         DetectEngineCtxFree(de_ctx);
 
     StreamTcpFreeConfig(true);
-    FLOW_DESTROY(&f);
+    if (f != NULL) {
+        FLOW_DESTROY(f);
+        UTHFreeFlow(f);
+    }
 
     UTHFreePackets(&p, 1);
     return result;
@@ -4575,7 +4583,7 @@ end:
 static int SigTestDropFlow03(void)
 {
     int result = 0;
-    Flow f;
+    Flow *f = NULL;
     HtpState *http_state = NULL;
     uint8_t http_buf1[] = "POST /one HTTP/1.0\r\n"
         "User-Agent: Mozilla/1.0\r\n"
@@ -4599,27 +4607,31 @@ static int SigTestDropFlow03(void)
     AppLayerParserThreadCtx *alp_tctx = AppLayerParserThreadCtxAlloc();
 
     memset(&tv, 0, sizeof(ThreadVars));
-    memset(&f, 0, sizeof(Flow));
     memset(&ssn, 0, sizeof(TcpSession));
 
     p1 = UTHBuildPacket(NULL, 0, IPPROTO_TCP);
     p2 = UTHBuildPacket(NULL, 0, IPPROTO_TCP);
+    if (p1 == NULL || p2 == NULL) {
+        goto end;
+    }
+    f = UTHBuildFlow(AF_INET, "1.2.3.4", "5.6.7.8", 1024, 80);
+    if (f == NULL) {
+        goto end;
+    }
 
-    FLOW_INITIALIZE(&f);
-    f.protoctx = (void *)&ssn;
-    f.proto = IPPROTO_TCP;
-    f.flags |= FLOW_IPV4;
+    f->protoctx = (void *)&ssn;
+    f->proto = IPPROTO_TCP;
 
-    p1->flow = &f;
+    p1->flow = f;
     p1->flowflags |= FLOW_PKT_TOSERVER;
     p1->flowflags |= FLOW_PKT_ESTABLISHED;
     p1->flags |= PKT_HAS_FLOW|PKT_STREAM_EST;
 
-    p2->flow = &f;
+    p2->flow = f;
     p2->flowflags |= FLOW_PKT_TOSERVER;
     p2->flowflags |= FLOW_PKT_ESTABLISHED;
     p2->flags |= PKT_HAS_FLOW|PKT_STREAM_EST;
-    f.alproto = ALPROTO_HTTP1;
+    f->alproto = ALPROTO_HTTP1;
 
     StreamTcpInitConfig(true);
 
@@ -4650,13 +4662,13 @@ static int SigTestDropFlow03(void)
     DetectEngineThreadCtxInit(&tv, (void *)de_ctx, (void *)&det_ctx);
 
     int r = AppLayerParserParse(
-            NULL, alp_tctx, &f, ALPROTO_HTTP1, STREAM_TOSERVER, http_buf1, http_buf1_len);
+            NULL, alp_tctx, f, ALPROTO_HTTP1, STREAM_TOSERVER, http_buf1, http_buf1_len);
     if (r != 0) {
         printf("toserver chunk 1 returned %" PRId32 ", expected 0: ", r);
         goto end;
     }
 
-    http_state = f.alstate;
+    http_state = f->alstate;
     if (http_state == NULL) {
         printf("no http state: ");
         goto end;
@@ -4693,7 +4705,7 @@ static int SigTestDropFlow03(void)
     }
 
     r = AppLayerParserParse(
-            NULL, alp_tctx, &f, ALPROTO_HTTP1, STREAM_TOSERVER, http_buf2, http_buf2_len);
+            NULL, alp_tctx, f, ALPROTO_HTTP1, STREAM_TOSERVER, http_buf2, http_buf2_len);
     if (r != 0) {
         printf("toserver chunk 2 returned %" PRId32 ", expected 0: ", r);
         goto end;
@@ -4730,7 +4742,10 @@ end:
         DetectEngineCtxFree(de_ctx);
 
     StreamTcpFreeConfig(true);
-    FLOW_DESTROY(&f);
+    if (f != NULL) {
+        FLOW_DESTROY(f);
+        UTHFreeFlow(f);
+    }
 
     UTHFreePackets(&p1, 1);
     UTHFreePackets(&p2, 1);
