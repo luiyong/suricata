@@ -444,6 +444,9 @@ static int SetupRuleAnalyzer(DetectEngineCtx *de_ctx)
 static void CleanupFPAnalyzer(DetectEngineCtx *de_ctx)
 {
     FILE *fp = de_ctx->ea->rule_engine_analysis_fp;
+    if (fp == NULL) {
+        return;
+    }
     fprintf(fp, "============\n"
                 "Summary:\n============\n");
 
@@ -506,6 +509,7 @@ void SetupEngineAnalysis(DetectEngineCtx *de_ctx, bool *fp_analysis, bool *rule_
         if (ea->analyzer_items)
             SCFree(ea->analyzer_items);
         SCFree(ea);
+        de_ctx->ea = NULL;
     }
 }
 
